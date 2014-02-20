@@ -23,14 +23,42 @@
 # SOFTWARE.
 
 """
-Package root for compound_files
-
 Most of the work in this package was derived from the specification for `OLE
 Compound Document`_ files published by OpenOffice, and the specification for
 the `Advanced Authoring Format`_ (AAF) published by Microsoft.
 
 .. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
 .. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
+
+
+CompoundFileReader
+==================
+
+.. autoclass:: CompoundFileReader
+    :members:
+
+
+CompoundFileStream
+==================
+
+.. autoclass:: CompoundFileStream
+    :members:
+
+
+CompoundFileEntity
+==================
+
+.. autoclass:: CompoundFileEntity
+    :members:
+
+
+Exceptions
+==========
+
+.. autoexception:: CompoundFileError
+
+.. autoexception:: CompoundFileWarning
+
 """
 
 from __future__ import (
@@ -179,11 +207,11 @@ class CompoundFileWarning(Warning):
 
 
 # XXX RawIOBase?
-class CompoundFileBaseStream(io.IOBase):
+class CompoundFileStream(io.IOBase):
     """
     Abstract base class for streams within an OLE Compound Document.
 
-    Instances of :class:`CompoundFileBaseStream` are not constructed
+    Instances of :class:`CompoundFileStream` are not constructed
     directly, but are returned by the :meth:`CompoundFileReader.open` method.
     They support all common methods associated with read-only streams
     (:meth:`read`, :meth:`seek`, :meth:`tell`, and so forth).
@@ -199,7 +227,7 @@ class CompoundFileBaseStream(io.IOBase):
         :attr:`thread_safe` attribute to determine if duplication succeeded.
     """
     def __init__(self):
-        super(CompoundFileBaseStream, self).__init__()
+        super(CompoundFileStream, self).__init__()
         self._sectors = array(b'L')
         self._sector_index = None
         self._sector_offset = None
@@ -350,7 +378,7 @@ class CompoundFileBaseStream(io.IOBase):
         return result
 
 
-class CompoundFileNormalStream(CompoundFileBaseStream):
+class CompoundFileNormalStream(CompoundFileStream):
     def __init__(self, parent, start, length=None):
         super(CompoundFileNormalStream, self).__init__()
         self._load_sectors(start, parent._normal_fat)
@@ -375,7 +403,7 @@ class CompoundFileNormalStream(CompoundFileBaseStream):
         self._set_pos(0)
 
 
-class CompoundFileMiniStream(CompoundFileBaseStream):
+class CompoundFileMiniStream(CompoundFileStream):
     def __init__(self, parent, start, length=None):
         super(CompoundFileMiniStream, self).__init__()
         self._load_sectors(start, parent._mini_fat)
@@ -410,18 +438,12 @@ class CompoundFileReader(object):
     mandatory.
 
     The :attr:`root` attribute represents the root storage entity in the
-    compound document. It can be enumerated to obtain a sequence of the
-    :class:`CompoundFileEntity` entities beneath it. An :meth:`open` method is
-    provided which (given a :class:`CompoundFileEntity` instance representing a
-    stream), returns a file-like object representing the content of the stream.
+    compound document. An :meth:`open` method is provided which (given a
+    :class:`CompoundFileEntity` instance representing a stream), returns a
+    file-like object representing the content of the stream.
 
-    Both :class:`CompoundFileReader` and :class:`CompoundFileEntity` support
-    human-readable representations making it relatively simple to browse and
-    extract information from compound documents simply by using the interactive
-    Python command line.
-
-    Finally, context manager protocol is also supported, permitting usage of
-    the class like so::
+    Finally, the context manager protocol is also supported, permitting usage
+    of the class like so::
 
         with CompoundFileReader('foo.doc') as doc:
             # Iterate over items in the root directory of the compound document
@@ -430,6 +452,19 @@ class CompoundFileReader(object):
                 if entry.isfile:
                     with doc.open(entry) as f:
                         f.read()
+
+    .. attribute:: root
+
+        The root attribute represents the root storage entity in the compound
+        document. It (and child storages) can be enumerated, accessed by index,
+        or by name (like a dict) to obtain :class:`CompoundFileEntity`
+        instances representing the content of the compound document.
+
+        Both :class:`CompoundFileReader` and :class:`CompoundFileEntity`
+        support human-readable representations making it relatively simple to
+        browse and extract information from compound documents simply by using
+        the interactive Python command line.
+
     """
 
     def __init__(self, filename_or_obj):
@@ -444,7 +479,7 @@ class CompoundFileReader(object):
         self._master_fat = array(b'L')
         self._normal_fat = array(b'L')
         self._mini_fat = array(b'L')
-        self._dir_root = None
+        self.root = None
         (
             magic,
             uuid,
@@ -526,6 +561,14 @@ class CompoundFileReader(object):
         self._load_directory()
 
     def open(self, filename_or_entity):
+        """
+        Return a file-like object with the content of the specified entity.
+
+        Given a :class:`CompoundFileEntity` instance which represents a stream,
+        or a string representing the path to one (using ``/`` separators), this
+        method returns an instance of :class:`CompoundFileStream` which can be
+        used to read the content of the stream.
+        """
         if isinstance(filename_or_entity, bytes):
             filename_or_entity = filename_or_entity.decode(FILENAME_ENCODING)
         if isinstance(filename_or_entity, str):

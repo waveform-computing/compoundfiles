@@ -102,7 +102,7 @@ latex_documents = [
     (
         'index',                            # source start file
         '%s.tex' % _setup.__project__,      # target filename
-        '%s Documentation', % project,      # title
+        '%s Documentation' % project,       # title
         _setup.__author__,                  # author
         'manual',                           # documentclass
         ),

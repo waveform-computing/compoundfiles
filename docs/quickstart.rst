@@ -20,7 +20,7 @@ either silence the warnings entirely or convert them into full blown
 exceptions.
 
 You can list the contents of the compound file via the
-:attr:`compound_files.CompoundFileReader.root` attribute which can be treated
+:attr:`~compound_files.CompoundFileReader.root` attribute which can be treated
 like a dictionary::
 
     >>> doc.root
@@ -94,8 +94,8 @@ like a dictionary::
      "<CompoundFileEntity name='RefTypeToApplyIfAvailable'>"]
 
 Use the :meth:`~compound_files.CompoundFileReader.open` method with a
-:class:`CompoundFileEntity`, or with a name that leads to one, to obtain a
-file-like object which can read the stream's content::
+:class:`~compound_files.CompoundFileEntity`, or with a name that leads to one,
+to obtain a file-like object which can read the stream's content::
 
     >>> doc.open('AutoRecon/BeamHardeningFilename').read()
     'Standard Beam Hardening Correction\x00'

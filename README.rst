@@ -19,3 +19,4 @@ ReadTheDocs.
 .. _bug tracker: https://github.com/waveform80/compound_files/issues
 .. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
 .. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
+.. _MIT license: http://opensource.org/licenses/MIT
