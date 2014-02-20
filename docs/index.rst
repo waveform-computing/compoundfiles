@@ -1,6 +1,8 @@
-=====================
-compound_files README
-=====================
+.. _root:
+
+================================
+Documentation for compound_files
+================================
 
 This package provides a library for reading Microsoft's `OLE Compound
 Document`_ format, which also forms the basis of the `Advanced Authoring
@@ -19,3 +21,25 @@ ReadTheDocs.
 .. _bug tracker: https://github.com/waveform80/compound_files/issues
 .. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
 .. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
+
+
+Table of Contents
+=================
+
+.. toctree::
+   :maxdepth: 2
+   :numbered:
+
+   install
+   quickstart
+   api
+   changelog
+   license
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
