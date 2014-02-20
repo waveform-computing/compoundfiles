@@ -54,6 +54,8 @@ import sys
 import struct as st
 import logging
 import warnings
+import datetime as dt
+from pprint import pformat
 from array import array
 
 
@@ -61,7 +63,8 @@ __all__ = [
     'CompoundFileError',
     'CompoundFileWarning',
     'CompoundFileReader',
-    'CompoundFileStream',
+    'CompoundFileNormalStream',
+    'CompoundFileMiniStream',
     ]
 
 # A quick personal rant: the AAF or OLE Compound Document format is yet another
@@ -82,7 +85,34 @@ __all__ = [
 # access characteristics this may look attractive, but please don't use it.
 # Ideally, loop-mounting a proper file-system would be the way to go, although
 # it generally involves jumping through several hoops due to mount being a
-# privileged operation.
+# privileged operation.</rant>
+#
+# In the interests of trying to keep naming vaguely consistent and sensible
+# here's a translation list with the names we'll be using first and the names
+# other documents use after:
+#
+#   normal-FAT = FAT = SAT
+#   master-FAT = DIFAT = DIF = MSAT
+#   mini-FAT = miniFAT = SSAT
+#
+# And here's a brief description of the compound document structure:
+#
+# Compound documents consist of a header, followed by a number of equally sized
+# sectors numbered incrementally. Within the sectors are stored the master-FAT,
+# normal-FAT, and (optional) mini-FAT, directory entries, and file streams. A
+# FAT is simply an indexed list of sectors, with each sector pointing to the
+# next in the chain, the last holding the END_OF_CHAIN value.
+#
+# The master-FAT (the location of which is determined by the header) stores
+# which sectors are occupied by the normal-FAT. It must be read first in order
+# to read sectors that make up the normal-FAT in order.
+#
+# The normal-FAT stores the locations of directory entries, file streams, and
+# tracks which sectors are allocated to the master-FAT and itself.
+#
+# The mini-FAT (if present) is stored as a file stream, virtually divided into
+# smaller sectors for the purposes of efficiently storing files smaller than
+# the normal sector size.
 
 # Magic identifier at the start of the file
 COMPOUND_MAGIC = b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1'
@@ -103,26 +133,46 @@ DIR_LOCKBYTES  = 3 # element is an ILockBytes object
 DIR_PROPERTY   = 4 # element is an IPropertyStorage object
 DIR_ROOT       = 5 # element is the root storage object
 
+FILENAME_ENCODING = 'latin-1'
+
 
 COMPOUND_HEADER = st.Struct(b''.join((
     b'<',    # little-endian format
     b'8s',   # magic string
-    b'16s',  # file UUID (ignored)
+    b'16s',  # file UUID (unused)
     b'H',    # file header major version
     b'H',    # file header minor version
     b'H',    # byte order mark
     b'H',    # sector size (actual size is 2**sector_size)
     b'H',    # mini sector size (actual size is 2**short_sector_size)
     b'6s',   # unused
-    b'L',    # sector count of directory chain
-    b'L',    # FAT sector count
-    b'L',    # ID of first sector of the FAT
-    b'L',    # transaction signature
+    b'L',    # directory chain sector count
+    b'L',    # normal-FAT sector count
+    b'L',    # ID of first sector of the normal-FAT
+    b'L',    # transaction signature (unused)
     b'L',    # minimum size of a normal stream
     b'L',    # ID of first sector of the mini-FAT
     b'L',    # mini-FAT sector count
     b'L',    # ID of first sector of the master-FAT
     b'L',    # master-FAT sector count
+    )))
+
+DIR_HEADER = st.Struct(b''.join((
+    b'<',    # little-endian format
+    b'64s',  # NULL-terminated filename in UTF-16 little-endian encoding
+    b'H',    # length of filename (why?!)
+    b'B',    # dir-entry type
+    b'B',    # red (0) or black (1) entry
+    b'L',    # ID of left-sibling node
+    b'L',    # ID of right-sibling node
+    b'L',    # ID of children's root node
+    b'16s',  # dir-entry UUID (unused)
+    b'L',    # user flags (unused)
+    b'Q',    # creation timestamp
+    b'Q',    # modification timestamp
+    b'L',    # start sector of stream
+    b'L',    # low 32-bits of stream size
+    b'L',    # high 32-bits of stream size
     )))
 
 
@@ -135,14 +185,14 @@ class CompoundFileWarning(Warning):
 
 
 # XXX RawIOBase?
-class CompoundFileStream(io.IOBase):
+class CompoundFileBaseStream(io.IOBase):
     """
-    Represents a stream within an OLE Compound Document.
+    Abstract base class for streams within an OLE Compound Document.
 
-    Instances of :class:`CompoundFileStream` are returned by the
-    :meth:`CompoundFileReader.open` method. They support all common methods
-    associated with read-only streams (:meth:`read`, :meth:`seek`,
-    :meth:`tell`, and so forth).
+    Instances of :class:`CompoundFileBaseStream` are not constructed
+    directly, but are returned by the :meth:`CompoundFileReader.open` method.
+    They support all common methods associated with read-only streams
+    (:meth:`read`, :meth:`seek`, :meth:`tell`, and so forth).
 
     .. note::
 
@@ -154,54 +204,38 @@ class CompoundFileStream(io.IOBase):
         descriptor. In this case, thread safety is not guaranteed. Check the
         :attr:`thread_safe` attribute to determine if duplication succeeded.
     """
+    def __init__(self):
+        super(CompoundFileBaseStream, self).__init__()
+        self._sectors = array(b'L')
+        self._sector_index = None
+        self._sector_offset = None
 
-    def __init__(self, parent, start, length=None):
-        super(CompoundFileStream, self).__init__()
-        self._sector_index = 0
-        self._sector_offset = 0
-        self._sector_size = parent._normal_sector_size
-        self._header_size = parent._header_size
-        try:
-            fd = os.dup(parent._file.fileno())
-        except AttributeError, OSError:
-            # Share the parent's _file if we fail to duplicate the descriptor
-            self._file = parent._file
-            self.thread_safe = False
-        else:
-            self._file = io.open(fd, 'rb')
-            self.thread_safe = True
-        try:
-            finish = start
-            while True:
-                sector = parent._normal_fat[finish]
-                if parent._max_sector < sector < MAX_NORMAL_SECTOR:
-                    warnings.warn(
-                            'invalid sector in stream chain (%d)' % value,
-                            CompoundFileWarning)
-                    break
-                elif sector == END_OF_CHAIN:
-                    break
-                finish += 1
-        except IndexError:
-            warnings.warn(
-                    'missing end of chain for file at sector %d' % start,
-                    CompoundFileWarning)
-            finish -= 1
-        if start == finish:
-            raise CompoundFileError(
-                    'empty chain for file starting at sector %d' % start)
-        # On Python 3 we guard against malicious files which repeat the same
-        # enormous FAT chain for multiple files by simply acquiring a memory
-        # view of the chain in the parent's FAT. On Python 2, memoryviews
-        # don't work with arrays (despite the doc's claim) so we have to hope
-        # the protections built into parsing the directory tree are sufficient
-        if sys.version_info[0] >= 3:
-            self._sectors = memoryview(parent._normal_fat)[start:finish]
-        else:
-            self._sectors = parent._normal_fat[start:finish]
-        if length is None:
-            length = len(self._sectors) * self._sector_size
-        self._length = length
+    def _load_sectors(self, start, fat):
+        # To guard against cyclic FAT chains we use the tortoise'n'hare
+        # algorithm here. If hare is ever equal to tortoise after a step, then
+        # the hare somehow got transported behind the tortoise (via a loop) so
+        # we raise an error
+        hare = start
+        tortoise = start
+        while tortoise != END_OF_CHAIN:
+            self._sectors.append(tortoise)
+            tortoise = fat[tortoise]
+            if hare != END_OF_CHAIN:
+                hare = fat[hare]
+                if hare != END_OF_CHAIN:
+                    hare = fat[hare]
+                    if hare == tortoise:
+                        raise CompoundFileError(
+                                'cyclic FAT chain found starting at %d' % start)
+
+    def _set_pos(self, value):
+        self._sector_index = value // self._sector_size
+        self._sector_offset = value % self._sector_size
+        if self._sector_index < len(self._sectors):
+            self._file.seek(
+                    self._header_size +
+                    (self._sectors[self._sector_index] * self._sector_size) +
+                    self._sector_offset)
 
     def close(self):
         """
@@ -233,15 +267,6 @@ class CompoundFileStream(io.IOBase):
         """
         return True
 
-    def _set_pos(self, value):
-        self._sector_index = value // self._sector_size
-        self._sector_offset = value % self._sector_size
-        if self._sector_index < len(self._sectors):
-            self._file.seek(
-                    self._header_size +
-                    (self._sectors[self._sector_index] * self._sector_size) +
-                    self._sector_offset)
-
     def tell(self):
         """
         Return the current stream position.
@@ -254,13 +279,13 @@ class CompoundFileStream(io.IOBase):
         interpreted relative to the position indicated by *whence*. Values for
         *whence* are:
 
-        * ``SEEK_SET`` or ``0`` – start of the stream (the default); *offset*
+        * ``SEEK_SET`` or ``0`` - start of the stream (the default); *offset*
           should be zero or positive
 
-        * ``SEEK_CUR`` or ``1`` – current stream position; *offset* may be
+        * ``SEEK_CUR`` or ``1`` - current stream position; *offset* may be
           negative
 
-        * ``SEEK_END`` or ``2`` – end of the stream; *offset* is usually
+        * ``SEEK_END`` or ``2`` - end of the stream; *offset* is usually
           negative
 
         Return the new absolute position.
@@ -286,7 +311,7 @@ class CompoundFileStream(io.IOBase):
         """
         if not self.thread_safe:
             # If we're sharing a file-pointer with the parent object we can't
-            # guarantee the file point is where we left it, so force a seek
+            # guarantee the file pointer is where we left it, so force a seek
             self._set_pos(self.tell())
         if n == -1:
             n = max(0, self._length - self.tell())
@@ -299,13 +324,12 @@ class CompoundFileStream(io.IOBase):
             result = self._file.read1(n)
         except AttributeError:
             result = self._file.read(n)
-        assert len(result) == n
-        self._sector_index += 1
-        self._sector_offset = 0
-        if self._sector_index < len(self._sectors):
-            self._file.seek(
-                    self._header_size +
-                    self._sectors[self._sector_index])
+            assert len(result) == n
+        # Only perform a seek to a different sector if we've crossed into one
+        if self._sector_offset + n < self._sector_size:
+            self._sector_offset += n
+        else:
+            self._set_pos(self.tell() + n)
         return result
 
     def read(self, n=-1):
@@ -332,6 +356,50 @@ class CompoundFileStream(io.IOBase):
         return result
 
 
+class CompoundFileNormalStream(CompoundFileBaseStream):
+    def __init__(self, parent, start, length=None):
+        super(CompoundFileNormalStream, self).__init__()
+        self._load_sectors(start, parent._normal_fat)
+        self._sector_size = parent._normal_sector_size
+        self._header_size = parent._header_size
+        try:
+            fd = os.dup(parent._file.fileno())
+        except AttributeError, OSError:
+            # Share the parent's _file if we fail to duplicate the descriptor
+            self._file = parent._file
+            self.thread_safe = False
+        else:
+            self._file = io.open(fd, 'rb')
+            self.thread_safe = True
+        max_length = len(self._sectors) * self._sector_size
+        if length is not None and length > max_length:
+            warnings.warn(
+                    'length (%d) of stream at sector %d exceeds max' % (
+                        length, start, max_length),
+                    CompoundFileWarning)
+        self._length = min(max_length, length or max_length)
+        self._set_pos(0)
+
+
+class CompoundFileMiniStream(CompoundFileBaseStream):
+    def __init__(self, parent, start, length=None):
+        super(CompoundFileMiniStream, self).__init__()
+        self._load_sectors(start, parent._mini_fat)
+        self._sector_size = parent._mini_sector_size
+        self._header_size = 0
+        self._file = CompoundFileNormalStream(
+                parent, parent.root._start_sector, parent.root.size)
+        self.thread_safe = self._file.thread_safe
+        max_length = len(self._sectors) * self._sector_size
+        if length is not None and length > max_length:
+            warnings.warn(
+                    'length (%d) of stream at sector %d exceeds max' % (
+                        length, start, max_length),
+                    CompoundFileWarning)
+        self._length = min(max_length, length or max_length)
+        self._set_pos(0)
+
+
 class CompoundFileReader(object):
     """
     Provides an interface for reading `OLE Compound Document`_ files.
@@ -347,24 +415,27 @@ class CompoundFileReader(object):
     to a call to ``fileno``, and provide a ``read1`` method, but these are not
     mandatory.
 
-    Instances of the class act can be enumerated to obtain a sequence of
-    :class:`CompoundDirEntry` objects which represent the elements of the root
-    directory in the file. An :meth:`open` method is provided which returns a
-    stream representing the content of files stored within the compound
-    document.
+    The :attr:`root` attribute represents the root storage entity in the
+    compound document. It can be enumerated to obtain a sequence of the
+    :class:`CompoundFileEntity` entities beneath it. An :meth:`open` method is
+    provided which (given a :class:`CompoundFileEntity` instance representing a
+    stream), returns a file-like object representing the content of the stream.
+
+    Both :class:`CompoundFileReader` and :class:`CompoundFileEntity` support
+    human-readable representations making it relatively simple to browse and
+    extract information from compound documents simply by using the interactive
+    Python command line.
 
     Finally, context manager protocol is also supported, permitting usage of
     the class like so::
 
         with CompoundFileReader('foo.doc') as doc:
             # Iterate over items in the root directory of the compound document
-            for entry in doc:
+            for entry in doc.root:
                 # If any entry is a file, attempt to read the data from it
                 if entry.isfile:
                     with doc.open(entry) as f:
                         f.read()
-
-    .. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
     """
 
     def __init__(self, filename_or_obj):
@@ -375,9 +446,11 @@ class CompoundFileReader(object):
         else:
             self._opened = False
             self._file = filename_or_obj
+
         self._master_fat = array(b'L')
         self._normal_fat = array(b'L')
         self._mini_fat = array(b'L')
+        self._dir_root = None
         (
             magic,
             uuid,
@@ -389,7 +462,7 @@ class CompoundFileReader(object):
             unused,
             self._dir_sector_count,
             self._normal_sector_count,
-            self._normal_first_sector,
+            self._dir_first_sector,
             txn_signature,
             self._mini_size_limit,
             self._mini_first_sector,
@@ -397,6 +470,8 @@ class CompoundFileReader(object):
             self._master_first_sector,
             self._master_sector_count,
         ) = COMPOUND_HEADER.unpack(self._file.read(COMPOUND_HEADER.size))
+
+        # Check the header for basic correctness
         if magic != COMPOUND_MAGIC:
             raise CompoundFileError(
                     '%s does not appear to be an OLE compound '
@@ -413,6 +488,8 @@ class CompoundFileReader(object):
         self._mini_sector_format = st.Struct(
                 bytes('<%dL' % (self._mini_sector_size // 4)))
         assert self._mini_sector_size == self._mini_sector_format.size
+
+        # More correctness checks, but mostly warnings at this stage
         if self._dll_version == 3:
             if self._normal_sector_size != 512:
                 warnings.warn(
@@ -434,7 +511,7 @@ class CompoundFileReader(object):
             warnings.warn(
                     'unexpected mini sector size '
                     '(%d)' % self._mini_sector_size, CompoundFileWarning)
-        if uuid != '\x00' * 16:
+        if uuid != (b'\0' * 16):
             warnings.warn(
                     'CLSID of compound file is non-zero (%r)' % uuid,
                     CompoundFileWarning)
@@ -442,7 +519,7 @@ class CompoundFileReader(object):
             warnings.warn(
                     'transaction signature is non-zero '
                     '(%d)' % txn_signature, CompoundFileWarning)
-        if unused != (b'\x00'*6):
+        if unused != (b'\0' * 6):
             warnings.warn(
                     'unused header bytes are non-zero '
                     '(%r)' % unused, CompoundFileWarning)
@@ -451,6 +528,33 @@ class CompoundFileReader(object):
         self._header_size = max(self._normal_sector_size, 512)
         self._max_sector = (self._file_size - self._header_size) // self._normal_sector_size
         self._load_normal_fat(self._load_master_fat())
+        self._load_mini_fat()
+        self._load_directory()
+
+    def open(self, filename_or_entity):
+        if isinstance(filename_or_entity, bytes):
+            filename_or_entity = filename_or_entity.decode(FILENAME_ENCODING)
+        if isinstance(filename_or_entity, str):
+            entity = self.root
+            for name in filename_or_entity.split('/'):
+                if name:
+                    try:
+                        entity = entity[name]
+                    except KeyError:
+                        raise CompoundFileError(
+                                'unable to locate %s in compound '
+                                'file' % filename_or_entity)
+            filename_or_entity = entity
+        if not filename_or_entity.isfile:
+            raise CompoundFileError(
+                    '%s is not a stream' % filename_or_entity.name)
+        cls = (
+                CompoundFileMiniStream
+                if filename_or_entity.size < self._mini_size_limit else
+                CompoundFileNormalStream)
+        return cls(
+                self, filename_or_entity._start_sector,
+                filename_or_entity.size)
 
     def close(self):
         if self._opened:
@@ -469,19 +573,20 @@ class CompoundFileReader(object):
                 self._header_size + (sector * self._normal_sector_size))
 
     def _load_master_fat(self):
-        # Note: when reading the DIFAT we deliberately disregard the DIFAT
-        # sector count read from the header as implementations may set this
-        # incorrectly. Instead, we scan for END_OF_CHAIN (or FREE_SECTOR) in
-        # the DIFAT after each read and stop when we find it. In order to avoid
-        # infinite loops (in the case of a *really* stupid file) we keep track
-        # of each sector we seek to and quit in the event of a repeat
+        # Note: when reading the master-FAT we deliberately disregard the
+        # master-FAT sector count read from the header as implementations may
+        # set this incorrectly. Instead, we scan for END_OF_CHAIN (or
+        # FREE_SECTOR) in the DIFAT after each read and stop when we find it.
+        # In order to avoid infinite loops (in the case of a stupid or
+        # malicious file) we keep track of each sector we seek to and quit in
+        # the event of a repeat
         self._master_fat = array(b'L')
         count = self._master_sector_count
         checked = 0
         sectors = set()
 
         # Special case: the first 109 entries are stored at the end of the file
-        # header and the next sector of the DIFAT is stored in the header
+        # header and the next sector of the master-FAT is stored in the header
         self._file.seek(COMPOUND_HEADER.size)
         self._master_fat.extend(
                 st.unpack(b'<109L', self._file.read(109 * 4)))
@@ -527,8 +632,8 @@ class CompoundFileReader(object):
                     self._normal_sector_format.unpack(
                         self._file.read(self._normal_sector_format.size)))
             # Guard against malicious files which could cause excessive memory
-            # allocation when reading the FAT. If the FAT alone would exceed
-            # 100Mb of RAM, raise an error
+            # allocation when reading the normal-FAT. If the normal-FAT alone
+            # would exceed 100Mb of RAM, raise an error
             if len(self._master_fat) * self._normal_sector_size > 100*1024*1024:
                 raise CompoundFileError(
                         'excessively large FAT (malicious file?)')
@@ -553,12 +658,12 @@ class CompoundFileReader(object):
         return sectors
 
     def _load_normal_fat(self, master_sectors):
-        # Again, when reading the FAT we deliberately disregard the FAT sector
-        # read from the header as some implementations get it wrong. Instead,
-        # we just read the sectors that the DIFAT chain tells us to (no need to
-        # check for loops or invalid sectors here though - the _load_master_fat
-        # method takes of those). After reading the FAT we check the DIFAT
-        # sectors are marked correctly.
+        # Again, when reading the FAT we deliberately disregard the normal-FAT
+        # sector count from the header as some implementations get it wrong.
+        # Instead, we just read the sectors that the master-FAT chain tells us
+        # to (no need to check for loops or invalid sectors here though - the
+        # _load_master_fat method takes of those). After reading the normal-FAT
+        # we check the master-FAT and normal-FAT sectors are marked correctly.
         self._normal_fat = array(b'L')
         for sector in self._master_fat:
             self._seek_sector(sector)
@@ -566,8 +671,8 @@ class CompoundFileReader(object):
                     self._normal_sector_format.unpack(
                         self._file.read(self._normal_sector_format.size)))
 
-        # The following simply verifies that all FAT and DIFAT sectors are
-        # marked appropriately in the FAT
+        # The following simply verifies that all normal-FAT and master-FAT
+        # sectors are marked appropriately in the normal-FAT
         for master_sector in master_sectors:
             if self._normal_fat[master_sector] != MASTER_FAT_SECTOR:
                 warnings.warn(
@@ -587,3 +692,239 @@ class CompoundFileReader(object):
                             NORMAL_FAT_SECTOR,
                             ), CompoundFileWarning)
 
+    def _load_mini_fat(self):
+        # Guard against malicious files which could cause excessive memory
+        # allocation when reading the mini-FAT. If the mini-FAT alone
+        # would exceed 100Mb of RAM, raise an error
+        if self._mini_sector_count * self._normal_sector_size > 100*1024*1024:
+            raise CompoundFileError(
+                    'excessively large mini-FAT (malicious file?)')
+        self._mini_fat = array(b'L')
+
+        # Construction of the stream below will construct the list of sectors
+        # the mini-FAT occupies, and will constrain the length to the declared
+        # mini-FAT sector count, or the number of occupied sectors (whichever
+        # is shorter)
+        with CompoundFileNormalStream(
+                self, self._mini_first_sector,
+                self._mini_sector_count * self._normal_sector_size) as stream:
+            for i in range(stream._length // self._normal_sector_size):
+                self._mini_fat.extend(
+                        self._normal_sector_format.unpack(
+                            stream.read(self._normal_sector_format.size)))
+
+    def _load_directory(self):
+        # When reading the directory we don't attempt to accurately reconstruct
+        # the red-black tree, partially because some implementations don't
+        # write a correct red-black tree and partially because it doesn't
+        # matter for users of the library. Instead we simply read the whole
+        # stream of directory entries and construct a hierarchy of
+        # CompoundFileEntity objects from this.
+        #
+        # In older compound files we have no idea how many entries are actually
+        # in the directory, so we calculate an upper bound from the directory
+        # stream's length
+        stream = CompoundFileNormalStream(self, self._dir_first_sector)
+        entries = [
+                CompoundFileEntity(self, stream, index)
+                for index in range(stream._length // DIR_HEADER.size)
+                ]
+        self.root = entries[0]
+        self.root._build_tree(entries)
+
+    def __len__(self):
+        return len(self.root)
+
+    def __getitem__(self, key):
+        return self.root[key]
+
+    def __contains__(self, key):
+        return key in self.root
+
+
+class CompoundFileEntity(object):
+    """
+    Represents an entity in an OLE Compound Document.
+
+    An entity in an OLE Compound Document can be a "stream" (analogous to a
+    file in a file-system) which has a :attr:`size` and can be opened by a call
+    to the parent object's :meth:`~CompoundFileReader.open` method.
+    Alternatively, it can be a "storage" (analogous to a directory in a
+    file-system), which has no size but has :attr:`created` and
+    :attr:`modified` time-stamps, and can contain other streams and storages.
+
+    Both streams and storages have a :attr:`name` attribute which can be up to
+    31 characters long and can contain any character representable in UTF-16
+    except the NULL character. Names are considered case-insensitive for
+    comparison purposes.
+
+    If the entity is a storage, it will act as an iterable read-only sequence,
+    indexable by ordinal or by name.
+    """
+
+    def __init__(self, parent, stream, index):
+        super(CompoundFileEntity, self).__init__()
+        self._index = index
+        self._children = None
+        (
+            name,
+            name_len,
+            self._entry_type,
+            self._entry_color,
+            self._left_index,
+            self._right_index,
+            self._child_index,
+            self.uuid,
+            user_flags,
+            created,
+            modified,
+            self._start_sector,
+            size_low,
+            size_high,
+        ) = DIR_HEADER.unpack(stream.read(DIR_HEADER.size))
+        self.name = name.decode('utf-16le')
+        try:
+            self.name = self.name[:self.name.index('\0')]
+        except ValueError:
+            self._check(False, 'missing NULL terminator in name')
+            self.name = self.name[:name_len]
+        if index == 0:
+            self._check(self._entry_type == DIR_ROOT, 'invalid type')
+            self._entry_type = DIR_ROOT
+        elif not self._entry_type in (DIR_STREAM, DIR_STORAGE, DIR_INVALID):
+                self._check(False, 'invalid type')
+                self._entry_type = DIR_INVALID
+        if self._entry_type == DIR_INVALID:
+            self._check(self.name == '', 'non-empty name')
+            self._check(name_len == 0, 'invalid name length (%d)' % name_len)
+            self._check(user_flags == 0, 'non-zero user flags')
+        else:
+            # Name length is in bytes, including NULL terminator ... for a
+            # unicode encoded name ... *headdesk*
+            self._check(
+                    (len(self.name) + 1) * 2 == name_len,
+                    'invalid name length (%d)' % name_len)
+        if self._entry_type in (DIR_INVALID, DIR_ROOT):
+            self._check(self._left_index == NO_STREAM, 'invalid left sibling')
+            self._check(self._right_index == NO_STREAM, 'invalid right sibling')
+            self._left_index = NO_STREAM
+            self._right_index = NO_STREAM
+        if self._entry_type in (DIR_INVALID, DIR_STREAM):
+            self._check(self._child_index == NO_STREAM, 'invalid child index')
+            self._check(self.uuid == b'\0' * 16, 'non-zero UUID')
+            self._check(created == 0, 'non-zero creation timestamp')
+            self._check(modified == 0, 'non-zero modification timestamp')
+            self._child_index = NO_STREAM
+            self.uuid = b'\0' * 16
+            created = 0
+            modified = 0
+        if self._entry_type in (DIR_INVALID, DIR_STORAGE):
+            self._check(self._start_sector == 0, 'non-zero start sector')
+            self._check(size_low == 0, 'non-zero size low-bits')
+            self._check(size_high == 0, 'non-zero size high-bits')
+            self._start_sector = 0
+            size_low = 0
+            size_high = 0
+        if parent._normal_sector_size == 512:
+            # Surely this should be checking DLL version instead of sector
+            # size?! But the spec does state sector size ...
+            self._check(size_high == 0, 'invalid size in small sector file')
+            self._check(size_low < 1<<31, 'size too large for small sector file')
+            size_high = 0
+        self.size = (size_high << 32) | size_low
+        epoch = dt.datetime(1601, 1, 1)
+        self.created = (
+                epoch + dt.timedelta(microseconds=created // 10)
+                if created != 0 else None)
+        self.modified = (
+                epoch + dt.timedelta(microseconds=created // 10)
+                if modified != 0 else None)
+
+    @property
+    def isfile(self):
+        """
+        Returns True if this is a stream entity which can be opened.
+        """
+        return self._entry_type == DIR_STREAM
+
+    @property
+    def isdir(self):
+        """
+        Returns True if this is a storage entity which can contain other
+        entities.
+        """
+        return self._entry_type in (DIR_STORAGE, DIR_ROOT)
+
+    def _check(self, valid, message):
+        if not valid:
+            warnings.warn(
+                    '%s in dir entry %d' % (message, self._index),
+                    CompoundFileWarning)
+
+    def _build_tree(self, entries):
+
+        # XXX Need cycle detection in here - add a visited flag?
+        def walk(node):
+            if node._left_index != NO_STREAM:
+                try:
+                    walk(entries[node._left_index])
+                except IndexError:
+                    node._check(False, 'invalid left index')
+            self._children.append(node)
+            if node._right_index != NO_STREAM:
+                try:
+                    walk(entries[node._right_index])
+                except IndexError:
+                    node._check(False, 'invalid right index')
+            if node._child_index != NO_STREAM:
+                node._build_tree(entries)
+
+        self._children = []
+        try:
+            walk(entries[self._child_index])
+        except IndexError:
+            self._check(False, 'invalid child index')
+
+    def __len__(self):
+        return len(self._children)
+
+    def __iter__(self):
+        return iter(self._children)
+
+    def __contains__(self, name_or_obj):
+        if isinstance(name_or_obj, bytes):
+            name_or_obj = name_or_obj.decode(FILENAME_ENCODING)
+        if isinstance(name_or_obj, str):
+            try:
+                self.__getitem__(name_or_obj)
+                return True
+            except KeyError:
+                return False
+        else:
+            return name_or_obj in self._children
+
+    def __getitem__(self, index_or_name):
+        if isinstance(index_or_name, bytes):
+            index_or_name = index_or_name.decode(FILENAME_ENCODING)
+        if isinstance(index_or_name, str):
+            name = index_or_name.lower()
+            for item in self._children:
+                if item.name.lower() == name:
+                    return item
+            raise KeyError(index_or_name)
+        else:
+            return self._children[index_or_name]
+
+    def __repr__(self):
+        return (
+            "<CompoundFileEntity name='%s'>" % self.name
+            if self.isfile else
+            pformat([
+                "<CompoundFileEntity dir='%s'>" % c.name
+                if c.isdir else
+                repr(c)
+                for c in self._children
+                ])
+            if self.isdir else
+            "<CompoundFileEntry ???>"
+            )
