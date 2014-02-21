@@ -924,9 +924,12 @@ class CompoundFileEntity(object):
             created = 0
             modified = 0
         if self._entry_type in (DIR_INVALID, DIR_STORAGE):
-            self._check(self._start_sector == 0, 'non-zero start sector')
-            self._check(size_low == 0, 'non-zero size low-bits')
-            self._check(size_high == 0, 'non-zero size high-bits')
+            self._check(self._start_sector == 0,
+                    'non-zero start sector (%d)' % self._start_sector)
+            self._check(size_low == 0,
+                    'non-zero size low-bits (%d)' % size_low)
+            self._check(size_high == 0,
+                    'non-zero size high-bits (%d)' % size_high)
             self._start_sector = 0
             size_low = 0
             size_high = 0
