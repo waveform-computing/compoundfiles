@@ -96,7 +96,7 @@ latex_elements = {
     'papersize': 'a4paper',
     'pointsize': '10pt',
     #'preamble': '',
-}
+    }
 
 latex_documents = [
     (
@@ -106,7 +106,7 @@ latex_documents = [
         _setup.__author__,                  # author
         'manual',                           # documentclass
         ),
-]
+    ]
 
 #latex_logo = None
 #latex_use_parts = False
