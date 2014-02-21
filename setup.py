@@ -52,11 +52,11 @@ try:
 except ImportError:
     pass
 
-__project__      = 'compound_files'
+__project__      = 'compoundfiles'
 __version__      = '0.1'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
-__url__          = 'https://pypi.python.org/pypi/compound_files/'
+__url__          = 'https://pypi.python.org/pypi/compoundfiles/'
 __platforms__    = ['ALL']
 
 __classifiers__ = [
@@ -135,7 +135,7 @@ def main():
                 if c.startswith('License ::')
                 ][0],
             keywords             = ' '.join(__keywords__),
-            packages             = ['compound_files'],
+            packages             = ['compoundfiles'],
             package_data         = {},
             include_package_data = True,
             platforms            = __platforms__,

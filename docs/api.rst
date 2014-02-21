@@ -4,5 +4,5 @@
 API Reference
 =============
 
-.. automodule:: compound_files
+.. automodule:: compoundfiles
 

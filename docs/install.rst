@@ -33,15 +33,15 @@ PyPI installation
 
 To install from `PyPI`_::
 
-    $ sudo pip install compound_files
+    $ sudo pip install compoundfiles
 
 To upgrade the installation::
 
-    $ sudo pip install -U compound_files
+    $ sudo pip install -U compoundfiles
 
 To remove the installation::
 
-    $ sudo pip uninstall compound_files
+    $ sudo pip uninstall compoundfiles
 
 
 Development installation
@@ -53,8 +53,8 @@ a virtualenv with source checked out from `GitHub`_, like so::
     $ sudo apt-get install make git python-virtualenv exuberant-ctags
     $ virtualenv sandbox
     $ source sandbox/bin/activate
-    $ git clone https://github.com/waveform80/compound_files.git
-    $ cd compound_files
+    $ git clone https://github.com/waveform80/compoundfiles.git
+    $ cd compoundfiles
     $ make develop
 
 The above instructions assume Ubuntu Linux, and use the included Makefile to
@@ -63,6 +63,6 @@ as constructing a tags file for easier navigation in vim/emacs). Please feel
 free to extend this section with instructions for alternate platforms.
 
 
-.. _PyPI: http://pypi.python.org/pypi/compound_files
-.. _GitHub: https://github.com/waveform80/compound_files
+.. _PyPI: http://pypi.python.org/pypi/compoundfiles
+.. _GitHub: https://github.com/waveform80/compoundfiles
 .. _PPA: https://launchpad.net/~waveform/+archive/ppa

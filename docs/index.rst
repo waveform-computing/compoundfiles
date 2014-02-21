@@ -1,8 +1,8 @@
 .. _root:
 
-================================
-Documentation for compound_files
-================================
+===============================
+Documentation for compoundfiles
+===============================
 
 This package provides a library for reading Microsoft's `OLE Compound
 Document`_ format, which also forms the basis of the `Advanced Authoring
@@ -15,10 +15,10 @@ GitHub, which also hosts the `bug tracker`_. The `documentation`_ (which
 includes installation instructions and quick-start examples) can be read on
 ReadTheDocs.
 
-.. _homepage: http://pypi.python.org/pypi/compound_files
-.. _documentation: http://compound_files.readthedocs.org/
-.. _source code: https://github.com/waveform80/compound_files
-.. _bug tracker: https://github.com/waveform80/compound_files/issues
+.. _homepage: http://pypi.python.org/pypi/compoundfiles
+.. _documentation: http://compoundfiles.readthedocs.org/
+.. _source code: https://github.com/waveform80/compoundfiles
+.. _bug tracker: https://github.com/waveform80/compoundfiles/issues
 .. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
 .. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
 .. _MIT license: http://opensource.org/licenses/MIT

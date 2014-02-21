@@ -6,9 +6,9 @@ Quick Start
 
 Import the library and open a compound document file::
 
-    >>> import compound_files
-    >>> doc = compound_files.CompoundFileReader('foo.txm')
-    compound_files/__init__.py:606: CompoundFileWarning: DIFAT terminated by FREE_SECTOR
+    >>> import compoundfiles
+    >>> doc = compoundfiles.CompoundFileReader('foo.txm')
+    compoundfiles/__init__.py:606: CompoundFileWarning: DIFAT terminated by FREE_SECTOR
       CompoundFileWarning)
 
 When opening the file you may see various warnings printed to the console (as
@@ -20,7 +20,7 @@ either silence the warnings entirely or convert them into full blown
 exceptions.
 
 You can list the contents of the compound file via the
-:attr:`~compound_files.CompoundFileReader.root` attribute which can be treated
+:attr:`~compoundfiles.CompoundFileReader.root` attribute which can be treated
 like a dictionary::
 
     >>> doc.root
@@ -93,8 +93,8 @@ like a dictionary::
      "<CompoundFileEntity name='OriginalDataRefCorrected'>",
      "<CompoundFileEntity name='RefTypeToApplyIfAvailable'>"]
 
-Use the :meth:`~compound_files.CompoundFileReader.open` method with a
-:class:`~compound_files.CompoundFileEntity`, or with a name that leads to one,
+Use the :meth:`~compoundfiles.CompoundFileReader.open` method with a
+:class:`~compoundfiles.CompoundFileEntity`, or with a name that leads to one,
 to obtain a file-like object which can read the stream's content::
 
     >>> doc.open('AutoRecon/BeamHardeningFilename').read()
@@ -114,7 +114,7 @@ to obtain a file-like object which can read the stream's content::
 You can also use entities as iterators, and the context manager protocol is
 supported for file and stream opening::
 
-    >>> with compound_files.CompoundFileReader('foo.txm') as doc:
+    >>> with compoundfiles.CompoundFileReader('foo.txm') as doc:
     ...     for entry in doc.root['AutoRecon']:
     ...         if entry.isfile:
     ...             with doc.open(entry) as stream:
