@@ -128,7 +128,7 @@ release: $(PY_SOURCES) $(DOC_SOURCES) $(DEB_SOURCES)
 upload: $(PY_SOURCES) $(DOC_SOURCES) $(DIST_DEB) $(DIST_DSC)
 	# build a source archive and upload to PyPI
 	$(PYTHON) $(PYFLAGS) setup.py sdist upload
-	dput waveform-ppa dist/python-$(NAME)_$(VER)-1~ppa1_source.changes
+	dput waveform-ppa dist/$(NAME)_$(VER)-1~ppa1_source.changes
 	git push --tags
 
 .PHONY: all install develop test doc source egg zip tar dist clean tags release upload
