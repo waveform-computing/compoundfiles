@@ -116,7 +116,7 @@ $(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES)
 	cp ../$(NAME)_$(VER)-1.dsc dist/
 	cp ../$(NAME)_$(VER)-1.tar.gz dist/
 
-release: $(PY_SOURCES) $(DOC_SOURCES)
+release: $(PY_SOURCES) $(DOC_SOURCES) $(DEB_SOURCES)
 	$(MAKE) clean
 	# ensure there are no current uncommitted changes
 	test -z "$(shell git status --porcelain)"
@@ -125,9 +125,11 @@ release: $(PY_SOURCES) $(DOC_SOURCES)
 	# update the package's registration on PyPI (in case any metadata's changed)
 	$(PYTHON) $(PYFLAGS) setup.py register
 
-upload: $(PY_SOURCES) $(DOC_SOURCES)
+upload: $(PY_SOURCES) $(DOC_SOURCES) $(DIST_DEB) $(DIST_DSC)
 	# build a source archive and upload to PyPI
 	$(PYTHON) $(PYFLAGS) setup.py sdist upload
+	dput waveform-ppa dist/python-$(NAME)_$(VER)-1~ppa1_source.changes
+	git push --tags
 
 .PHONY: all install develop test doc source egg zip tar dist clean tags release upload
 
