@@ -5,7 +5,7 @@ Change log
 ==========
 
 
-Release 0.1 (2014-02-20)
+Release 0.1 (2014-02-22)
 ========================
 
 Initial release.
