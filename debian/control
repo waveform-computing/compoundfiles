@@ -1,0 +1,42 @@
+Source: compoundfiles
+Maintainer: Dave Hughes <dave@waveform.org.uk>
+Homepage: http://pypi.python.org/pypi/compoundfiles
+Section: python
+Priority: extra
+Build-Depends: debhelper (>= 8), dh-python, python-all (>= 2.7), python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx (>= 1.0.7+dfsg-1~), python-pytest, python3-pytest, python-mock, python3-mock
+Standards-Version: 3.9.4
+X-Python-Version: >= 2.7
+X-Python3-Version: >= 3.2
+
+Package: python-compoundfiles
+Architecture: any
+Depends: ${misc:Depends}, ${python:Depends}
+Suggests: python-compoundfiles-docs
+Description: Library for parsing and reading OLE Compound Documents.
+ compoundfiles is a library for working with Microsoft OLE Compound Documents,
+ which formed the basis for the older binary Office formats, and the newer
+ Advanced Authoring Format.
+ .
+ This is the Python 2 version of the package.
+
+Package: python3-compoundfiles
+Architecture: any
+Depends: ${misc:Depends}, ${python3:Depends}
+Suggests: python-compoundfiles-docs
+Description: Library for parsing and reading OLE Compound Documents.
+ compoundfiles is a library for working with Microsoft OLE Compound Documents,
+ which formed the basis for the older binary Office formats, and the newer
+ Advanced Authoring Format.
+ .
+ This is the Python 3 version of the package.
+
+Package: python-compoundfiles-docs
+Architecture: all
+Section: doc
+Depends: ${sphinxdoc:Depends}, ${misc:Depends}
+Description: Documentation for the library for reading OLE Compound Documents.
+ compoundfiles is a library for working with Microsoft OLE Compound Documents,
+ which formed the basis for the older binary Office formats, and the newer
+ Advanced Authoring Format.
+ .
+ This is the version-independant documentation for the package.

@@ -389,7 +389,7 @@ class CompoundFileNormalStream(CompoundFileStream):
         self._header_size = parent._header_size
         try:
             fd = os.dup(parent._file.fileno())
-        except AttributeError, OSError:
+        except (AttributeError, OSError) as e:
             # Share the parent's _file if we fail to duplicate the descriptor
             self._file = parent._file
             self.thread_safe = False

@@ -73,7 +73,8 @@ develop: tags
 	$(PYTHON) $(PYFLAGS) setup.py develop
 
 test:
-	$(PYTHON) $(PYFLAGS) setup.py test
+	coverage run -m py.test tests
+	coverage report --rcfile coverage.cfg
 
 clean:
 	$(PYTHON) $(PYFLAGS) setup.py clean
@@ -94,19 +95,22 @@ $(DIST_EGG): $(PY_SOURCES)
 	$(PYTHON) $(PYFLAGS) setup.py bdist_egg
 
 $(DIST_DEB): $(PY_SOURCES) $(DEB_SOURCES)
-	# build the source package in the parent directory then rename it to
+	# build the binary packages in the parent directory then rename it to
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -b -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I*.xcf -rfakeroot
+	debuild -b -i -I -Idist -Ibuild -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -rfakeroot
 	mkdir -p dist/
+	cp ../python-$(NAME)_$(VER)-1_amd64.deb dist/
+	cp ../python3-$(NAME)_$(VER)-1_amd64.deb dist/
+	cp ../python-$(NAME)-docs_$(VER)-1_all.deb dist/
 
 $(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES)
 	# build the source package in the parent directory then rename it to
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -S -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I*.xcf -rfakeroot
+	debuild -S -i -I -Idist -Ibuild -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -rfakeroot
 	mkdir -p dist/
 	cp ../$(NAME)_$(VER)-1_source.changes dist/
 	cp ../$(NAME)_$(VER)-1.dsc dist/

@@ -33,7 +33,6 @@ str = type('')
 import os
 import sys
 from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
 
 if sys.version_info[0] == 2:
     if not sys.version_info >= (2, 7):
@@ -62,7 +61,7 @@ __platforms__    = ['ALL']
 __classifiers__ = [
     'Development Status :: 3 - Alpha',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: BSD License',
+    'License :: OSI Approved :: MIT License',
     'Operating System :: Unix',
     'Operating System :: Microsoft :: Windows',
     'Programming Language :: Python :: 2.7',
@@ -74,8 +73,7 @@ __keywords__ = [
     'microsoft',
     'ole',
     'compound',
-    'documents',
-    'files',
+    'document',
     ]
 
 __requires__ = [
@@ -85,7 +83,7 @@ __extra_requires__ = {
     'doc': ['sphinx'],
     }
 
-if sys.version_info == (3, 2):
+if sys.version_info[:2] == (3, 2):
     __extra_requires__['doc'].extend([
         # Particular versions are required for Python 3.2 compatibility. The
         # ordering is reversed because that's what easy_install needs...
@@ -95,26 +93,6 @@ if sys.version_info == (3, 2):
 
 __entry_points__ = {
     }
-
-
-# Add a py.test based "test" command
-class PyTest(TestCommand):
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = [
-            '--verbose',
-            '--cov', __project__,
-            '--cov-report', 'term-missing',
-            '--cov-report', 'html',
-            '--cov-config', 'coverage.cfg',
-            'tests',
-            ]
-        self.test_suite = True
-
-    def run_tests(self):
-        import pytest
-        errno = pytest.main(self.test_args)
-        sys.exit(errno)
 
 
 def main():
@@ -135,7 +113,7 @@ def main():
                 if c.startswith('License ::')
                 ][0],
             keywords             = ' '.join(__keywords__),
-            packages             = ['compoundfiles'],
+            packages             = find_packages(),
             package_data         = {},
             include_package_data = True,
             platforms            = __platforms__,
@@ -143,8 +121,6 @@ def main():
             extras_require       = __extra_requires__,
             zip_safe             = True,
             entry_points         = __entry_points__,
-            tests_require        = ['pytest-cov', 'pytest', 'mock'],
-            cmdclass             = {'test': PyTest},
             )
 
 if __name__ == '__main__':

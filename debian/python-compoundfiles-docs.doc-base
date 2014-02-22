@@ -1,0 +1,9 @@
+Document: python-compoundfiles
+Title: Compoundfiles Reference
+Author: Dave Hughes <dave@waveform.org.uk>
+Abstract: Documentation for the Python compoundfiles library
+Section: Programming/Python
+
+Format: HTML
+Index: /usr/share/doc/python-compoundfiles-docs/html/index.html
+Files: /usr/share/doc/python-compoundfiles-docs/html/*
