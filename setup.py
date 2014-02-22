@@ -22,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"Library for parsing and reading OLE Compound Documents"
+
 from __future__ import (
     unicode_literals,
     absolute_import,
