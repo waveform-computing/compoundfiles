@@ -14,7 +14,7 @@ includes installation instructions and quick-start examples) can be read on
 ReadTheDocs.
 
 .. _homepage: http://pypi.python.org/pypi/compoundfiles
-.. _documentation: http://compoundfiles.readthedocs.org/
+.. _documentation: http://compound-files.readthedocs.org/
 .. _source code: https://github.com/waveform80/compoundfiles
 .. _bug tracker: https://github.com/waveform80/compoundfiles/issues
 .. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
