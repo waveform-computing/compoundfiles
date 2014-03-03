@@ -76,10 +76,13 @@ import sys
 import struct as st
 import logging
 import warnings
+import mmap
+import tempfile
+import shutil
 import datetime as dt
+from abc import abstractmethod
 from pprint import pformat
 from array import array
-from mmap import mmap
 
 
 __all__ = [
@@ -219,16 +222,6 @@ class CompoundFileStream(io.RawIOBase):
     directly, but are returned by the :meth:`CompoundFileReader.open` method.
     They support all common methods associated with read-only streams
     (:meth:`read`, :meth:`seek`, :meth:`tell`, and so forth).
-
-    .. note::
-
-        The implementation attempts to duplicate the parent object's file
-        descriptor upon construction which theoretically means multiple threads
-        can simultaneously read different files in the compound document.
-        However, if duplication of the file descriptor fails for any reason,
-        the implementation falls back on sharing the parent object's file
-        descriptor. In this case, thread safety is not guaranteed. Check the
-        :attr:`thread_safe` attribute to determine if duplication succeeded.
     """
     def __init__(self):
         super(CompoundFileStream, self).__init__()
@@ -254,25 +247,9 @@ class CompoundFileStream(io.RawIOBase):
                         raise CompoundFileError(
                                 'cyclic FAT chain found starting at %d' % start)
 
+    @abstractmethod
     def _set_pos(self, value):
-        self._sector_index = value // self._sector_size
-        self._sector_offset = value % self._sector_size
-        if self._sector_index < len(self._sectors):
-            self._file.seek(
-                    self._header_size +
-                    (self._sectors[self._sector_index] * self._sector_size) +
-                    self._sector_offset)
-
-    def close(self):
-        """
-        Close the file pointer.
-        """
-        if self.thread_safe:
-            try:
-                self._file.close()
-            except AttributeError:
-                pass
-        self._file = None
+        raise NotImplementedError
 
     def readable(self):
         """
@@ -326,6 +303,7 @@ class CompoundFileStream(io.RawIOBase):
         self._set_pos(offset)
         return offset
 
+    @abstractmethod
     def read1(self, n=-1):
         """
         Read up to *n* bytes from the stream using only a single call to the
@@ -335,28 +313,7 @@ class CompoundFileStream(io.RawIOBase):
         returning the content from the current position up to the end of the
         current sector.
         """
-        if not self.thread_safe:
-            # If we're sharing a file-pointer with the parent object we can't
-            # guarantee the file pointer is where we left it, so force a seek
-            self._set_pos(self.tell())
-        if n == -1:
-            n = max(0, self._length - self.tell())
-        else:
-            n = max(0, min(n, self._length - self.tell()))
-        n = min(n, self._sector_size - self._sector_offset)
-        if n == 0:
-            return b''
-        try:
-            result = self._file.read1(n)
-        except AttributeError:
-            result = self._file.read(n)
-            assert len(result) == n
-        # Only perform a seek to a different sector if we've crossed into one
-        if self._sector_offset + n < self._sector_size:
-            self._sector_offset += n
-        else:
-            self._set_pos(self.tell() + n)
-        return result
+        raise NotImplementedError
 
     def read(self, n=-1):
         """
@@ -372,14 +329,15 @@ class CompoundFileStream(io.RawIOBase):
             n = max(0, self._length - self.tell())
         else:
             n = max(0, min(n, self._length - self.tell()))
-        result = b''
-        while n > 0:
-            buf = self.read1(n)
+        result = bytearray(n)
+        i = 0
+        while i < n:
+            buf = self.read1(n - i)
             if not buf:
                 break
-            n -= len(buf)
-            result += buf
-        return result
+            result[i:i + len(buf)] = buf
+            i += len(buf)
+        return bytes(result)
 
 
 class CompoundFileNormalStream(CompoundFileStream):
@@ -388,15 +346,7 @@ class CompoundFileNormalStream(CompoundFileStream):
         self._load_sectors(start, parent._normal_fat)
         self._sector_size = parent._normal_sector_size
         self._header_size = parent._header_size
-        try:
-            fd = os.dup(parent._file.fileno())
-        except (AttributeError, OSError) as e:
-            # Share the parent's _file if we fail to duplicate the descriptor
-            self._file = parent._file
-            self.thread_safe = False
-        else:
-            self._file = io.open(fd, 'rb')
-            self.thread_safe = True
+        self._mmap = parent._mmap
         min_length = (len(self._sectors) - 1) * self._sector_size
         max_length = len(self._sectors) * self._sector_size
         if length is None:
@@ -411,6 +361,29 @@ class CompoundFileNormalStream(CompoundFileStream):
             self._length = length
         self._set_pos(0)
 
+    def close(self):
+        self._mmap = None
+
+    def _set_pos(self, value):
+        self._sector_index = value // self._sector_size
+        self._sector_offset = value % self._sector_size
+
+    def read1(self, n=-1):
+        if n == -1:
+            n = max(0, self._length - self.tell())
+        else:
+            n = max(0, min(n, self._length - self.tell()))
+        n = min(n, self._sector_size - self._sector_offset)
+        if n == 0:
+            return b''
+        offset = (
+                self._header_size + (
+                self._sectors[self._sector_index] * self._sector_size) +
+                self._sector_offset)
+        result = self._mmap[offset:offset + n]
+        self._set_pos(self.tell() + n)
+        return result
+
 
 class CompoundFileMiniStream(CompoundFileStream):
     def __init__(self, parent, start, length=None):
@@ -420,7 +393,6 @@ class CompoundFileMiniStream(CompoundFileStream):
         self._header_size = 0
         self._file = CompoundFileNormalStream(
                 parent, parent.root._start_sector, parent.root.size)
-        self.thread_safe = self._file.thread_safe
         max_length = len(self._sectors) * self._sector_size
         if length is not None and length > max_length:
             warnings.warn(
@@ -429,6 +401,37 @@ class CompoundFileMiniStream(CompoundFileStream):
                     CompoundFileWarning)
         self._length = min(max_length, length or max_length)
         self._set_pos(0)
+
+    def close(self):
+        try:
+            self._file.close()
+        finally:
+            self._file = None
+
+    def _set_pos(self, value):
+        self._sector_index = value // self._sector_size
+        self._sector_offset = value % self._sector_size
+        if self._sector_index < len(self._sectors):
+            self._file.seek(
+                    self._header_size +
+                    (self._sectors[self._sector_index] * self._sector_size) +
+                    self._sector_offset)
+
+    def read1(self, n=-1):
+        if n == -1:
+            n = max(0, self._length - self.tell())
+        else:
+            n = max(0, min(n, self._length - self.tell()))
+        n = min(n, self._sector_size - self._sector_offset)
+        if n == 0:
+            return b''
+        result = self._file.read1(n)
+        # Only perform a seek to a different sector if we've crossed into one
+        if self._sector_offset + n < self._sector_size:
+            self._sector_offset += n
+        else:
+            self._set_pos(self.tell() + n)
+        return result
 
 
 class CompoundFileReader(object):
@@ -443,8 +446,7 @@ class CompoundFileReader(object):
     The class can be constructed with a filename or a file-like object. In the
     latter case, the object must support the ``read``, ``seek``, and ``tell``
     methods. For optimal usage, it should also provide a valid file descriptor
-    in response to a call to ``fileno``, and provide a ``read1`` method, but
-    these are not mandatory.
+    in response to a call to ``fileno``, but this is not mandatory.
 
     The :attr:`root` attribute represents the root storage entity in the
     compound document. An :meth:`open` method is provided which (given a
@@ -481,9 +483,17 @@ class CompoundFileReader(object):
         if isinstance(filename_or_obj, (str, bytes)):
             self._opened = True
             self._file = io.open(filename_or_obj, 'rb')
-        else:
+        elif hasattr(filename_or_obj, 'fileno'):
             self._opened = False
             self._file = filename_or_obj
+        else:
+            # It's a file-like object without a valid file descriptor; copy its
+            # content to a spooled temp file and use that for mmap
+            filename_or_obj.seek(0)
+            self._opened = True
+            self._file = tempfile.SpooledTemporaryFile()
+            shutil.copyfileobj(filename_or_obj, self._file)
+        self._mmap = mmap.mmap(self._file.fileno(), 0, access=mmap.ACCESS_READ)
 
         self._master_fat = None
         self._normal_fat = None
@@ -507,7 +517,7 @@ class CompoundFileReader(object):
             self._mini_sector_count,
             self._master_first_sector,
             self._master_sector_count,
-        ) = COMPOUND_HEADER.unpack(self._file.read(COMPOUND_HEADER.size))
+        ) = COMPOUND_HEADER.unpack(self._mmap[:COMPOUND_HEADER.size])
 
         # Check the header for basic correctness
         if magic != COMPOUND_MAGIC:
@@ -571,8 +581,7 @@ class CompoundFileReader(object):
             warnings.warn(
                     'unused header bytes are non-zero '
                     '(%r)' % unused, CompoundFileWarning)
-        self._file.seek(0, io.SEEK_END)
-        self._file_size = self._file.tell()
+        self._file_size = self._mmap.size()
         self._header_size = max(self._normal_sector_size, 512)
         self._max_sector = (self._file_size - self._header_size) // self._normal_sector_size
         self._load_normal_fat(self._load_master_fat())
@@ -613,8 +622,13 @@ class CompoundFileReader(object):
                 filename_or_entity.size)
 
     def close(self):
-        if self._opened:
-            self._file.close()
+        try:
+            self._mmap.close()
+            if self._opened:
+                self._file.close()
+        finally:
+            self._mmap = None
+            self._file = None
 
     def __enter__(self):
         return self
@@ -622,11 +636,11 @@ class CompoundFileReader(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    def _seek_sector(self, sector):
+    def _read_sector(self, sector):
         if sector > self._max_sector:
-            raise CompoundFileError('seek to invalid sector (%d)' % sector)
-        self._file.seek(
-                self._header_size + (sector * self._normal_sector_size))
+            raise CompoundFileError('read from invalid sector (%d)' % sector)
+        offset = self._header_size + (sector * self._normal_sector_size)
+        return self._mmap[offset:offset + self._normal_sector_size]
 
     def _load_master_fat(self):
         # Note: when reading the master-FAT we deliberately disregard the
@@ -643,9 +657,9 @@ class CompoundFileReader(object):
 
         # Special case: the first 109 entries are stored at the end of the file
         # header and the next sector of the master-FAT is stored in the header
-        self._file.seek(COMPOUND_HEADER.size)
+        offset = COMPOUND_HEADER.size
         self._master_fat.extend(
-                st.unpack(b'<109L', self._file.read(109 * 4)))
+                st.unpack(b'<109L', self._mmap[offset:offset + (109 * 4)]))
         sector = self._master_first_sector
         if count == 0 and sector == FREE_SECTOR:
             warnings.warn(
@@ -689,10 +703,9 @@ class CompoundFileReader(object):
             # last value
             count -= 1
             sectors.add(sector)
-            self._seek_sector(sector)
             self._master_fat.extend(
                     self._normal_sector_format.unpack(
-                        self._file.read(self._normal_sector_format.size)))
+                        self._read_sector(sector)))
             # Guard against malicious files which could cause excessive memory
             # allocation when reading the normal-FAT. If the normal-FAT alone
             # would exceed 100Mb of RAM, raise an error
@@ -732,10 +745,9 @@ class CompoundFileReader(object):
         # of contiguous sectors? Or make the array lazy-read whenever a block
         # needs filling?
         for sector in self._master_fat:
-            self._seek_sector(sector)
             self._normal_fat.extend(
                     self._normal_sector_format.unpack(
-                        self._file.read(self._normal_sector_format.size)))
+                        self._read_sector(sector)))
 
         # The following simply verifies that all normal-FAT and master-FAT
         # sectors are marked appropriately in the normal-FAT
@@ -1031,3 +1043,4 @@ class CompoundFileEntity(object):
             if self.isdir else
             "<CompoundFileEntry ???>"
             )
+
