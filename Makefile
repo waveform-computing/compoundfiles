@@ -2,6 +2,9 @@
 
 # External utilities
 PYTHON=python
+PIP=pip
+PYTEST=py.test
+COVERAGE=coverage
 PYFLAGS=
 DEST_DIR=/
 
@@ -70,11 +73,11 @@ deb: $(DIST_DEB) $(DIST_DSC)
 dist: $(DIST_EGG) $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_ZIP)
 
 develop: tags
-	$(PYTHON) $(PYFLAGS) setup.py develop
+	$(PIP) install -e .
 
 test:
-	coverage run -m py.test tests
-	coverage report --rcfile coverage.cfg
+	$(COVERAGE) run -m $(PYTEST) tests
+	$(COVERAGE) report --rcfile coverage.cfg
 
 clean:
 	$(PYTHON) $(PYFLAGS) setup.py clean
@@ -131,5 +134,5 @@ upload: $(PY_SOURCES) $(DOC_SOURCES) $(DIST_DEB) $(DIST_DSC)
 	dput waveform-ppa dist/$(NAME)_$(VER)-1~ppa1_source.changes
 	git push --tags
 
-.PHONY: all install develop test doc source egg zip tar dist clean tags release upload
+.PHONY: all install develop test doc source egg zip tar deb dist clean tags release upload
 
