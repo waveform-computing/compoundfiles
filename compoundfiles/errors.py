@@ -22,45 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""
-Most of the work in this package was derived from the specification for `OLE
-Compound Document`_ files published by OpenOffice, and the specification for
-the `Advanced Authoring Format`_ (AAF) published by Microsoft.
-
-.. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
-.. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
-
-
-CompoundFileReader
-==================
-
-.. autoclass:: CompoundFileReader
-    :members:
-
-
-CompoundFileStream
-==================
-
-.. autoclass:: CompoundFileStream
-    :members:
-
-
-CompoundFileEntity
-==================
-
-.. autoclass:: CompoundFileEntity
-    :members:
-
-
-Exceptions
-==========
-
-.. autoexception:: CompoundFileError
-
-.. autoexception:: CompoundFileWarning
-
-"""
-
 from __future__ import (
     unicode_literals,
     absolute_import,
@@ -70,17 +31,14 @@ from __future__ import (
 str = type('')
 
 
-from compoundfiles.errors import CompoundFileError, CompoundFileWarning
-from compoundfiles.streams import CompoundFileStream
-from compoundfiles.entities import CompoundFileEntity
-from compoundfiles.reader import CompoundFileReader
+class CompoundFileError(IOError):
+    """
+    Base class for exceptions arising from reading compound documents.
+    """
 
 
-__all__ = [
-    'CompoundFileError',
-    'CompoundFileWarning',
-    'CompoundFileReader',
-    'CompoundFileStream',
-    'CompoundFileEntity',
-    ]
+class CompoundFileWarning(Warning):
+    """
+    Base class for warnings arising from reading compound documents.
+    """
 
