@@ -79,6 +79,7 @@ import warnings
 import datetime as dt
 from pprint import pformat
 from array import array
+from mmap import mmap
 
 
 __all__ = [
@@ -122,7 +123,7 @@ __all__ = [
 # Compound documents consist of a header, followed by a number of equally sized
 # sectors numbered incrementally. Within the sectors are stored the master-FAT,
 # normal-FAT, and (optional) mini-FAT, directory entries, and file streams. A
-# FAT is simply an indexed list of sectors, with each sector pointing to the
+# FAT is simply a linked list of sectors, with each sector pointing to the
 # next in the chain, the last holding the END_OF_CHAIN value.
 #
 # The master-FAT (the location of which is determined by the header) stores
@@ -977,14 +978,15 @@ class CompoundFileEntity(object):
                     walk(entries[node._right_index])
                 except IndexError:
                     node._check(False, 'invalid right index')
-            if node._child_index != NO_STREAM:
-                node._build_tree(entries)
+            node._build_tree(entries)
 
-        self._children = []
-        try:
-            walk(entries[self._child_index])
-        except IndexError:
-            self._check(False, 'invalid child index')
+        if self.isdir:
+            self._children = []
+            try:
+                walk(entries[self._child_index])
+            except IndexError:
+                if self._child_index != NO_STREAM:
+                    self._check(False, 'invalid child index')
 
     def __len__(self):
         return len(self._children)
