@@ -1,15 +1,3 @@
-compoundfiles (0.1-3~ppa1) precise; urgency=low
-
-  * Will it build for Precise now?
-
- -- Dave Hughes <dave@waveform.org.uk>  Sat, 22 Feb 2014 16:36:01 +0000
-
-compoundfiles (0.1-2) precise; urgency=low
-
-  * Fix build on Precise ... hopefully?
-
- -- Dave Hughes <dave@waveform.org.uk>  Sat, 22 Feb 2014 15:36:43 +0000
-
 compoundfiles (0.1-1) precise; urgency=low
 
   * Initial release

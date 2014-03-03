@@ -2,10 +2,14 @@
 # -*- makefile -*-
 
 #export DH_VERBOSE=1
-export PYBUILD_NAME=compoundfiles
+export DH_OPTIONS
 
 %:
-	dh $@ --with python2,python3,sphinxdoc --buildsystem=pybuild --pyver "2.7 3.2"
+	dh $@ --with python2,python3,sphinxdoc --buildsystem=python_distutils
+
+override_dh_auto_install:
+	python setup.py install --root debian/python-compoundfiles --install-layout=deb
+	python3 setup.py install --root debian/python3-compoundfiles --install-layout=deb
 
 override_dh_auto_test:
 	# Don't run the tests...
