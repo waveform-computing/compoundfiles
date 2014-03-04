@@ -154,16 +154,24 @@ class CompoundFileReader(object):
         if isinstance(filename_or_obj, (str, bytes)):
             self._opened = True
             self._file = io.open(filename_or_obj, 'rb')
-        elif hasattr(filename_or_obj, 'fileno'):
-            self._opened = False
-            self._file = filename_or_obj
         else:
-            # It's a file-like object without a valid file descriptor; copy its
-            # content to a spooled temp file and use that for mmap
-            filename_or_obj.seek(0)
-            self._opened = True
-            self._file = tempfile.SpooledTemporaryFile()
-            shutil.copyfileobj(filename_or_obj, self._file)
+            try:
+                filename_or_obj.fileno()
+            except (IOError, AttributeError):
+                # It's a file-like object without a valid file descriptor; copy
+                # its content to a spooled temp file and use that for mmap
+                try:
+                    filename_or_obj.seek(0)
+                except (IOError, AttributeError):
+                    raise IOError('filename_or_obj must support seek() or fileno()')
+                self._opened = True
+                self._file = tempfile.SpooledTemporaryFile()
+                shutil.copyfileobj(filename_or_obj, self._file)
+            else:
+                # It's a file-like object with a valid file descriptor; just
+                # reference the object and mmap it
+                self._opened = False
+                self._file = filename_or_obj
         self._mmap = mmap.mmap(self._file.fileno(), 0, access=mmap.ACCESS_READ)
 
         self._master_fat = None
