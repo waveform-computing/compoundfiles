@@ -67,7 +67,6 @@ from __future__ import (
     print_function,
     division,
     )
-str = type('')
 
 
 from compoundfiles.errors import CompoundFileError, CompoundFileWarning

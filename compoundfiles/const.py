@@ -28,7 +28,6 @@ from __future__ import (
     print_function,
     division,
     )
-str = type('')
 
 
 import struct as st
