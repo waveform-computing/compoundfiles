@@ -110,9 +110,6 @@ tags: $(PY_SOURCES)
 $(DIST_TAR): $(PY_SOURCES)
 	$(PYTHON) $(PYFLAGS) setup.py sdist --formats gztar
 
-$(DIST_TAR): $(PY_SOURCES)
-	$(PYTHON) $(PYFLAGS) setup.py sdist --formats gztar
-
 $(DIST_ZIP): $(PY_SOURCES)
 	$(PYTHON) $(PYFLAGS) setup.py sdist --formats zip
 
