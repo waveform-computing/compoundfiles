@@ -28,6 +28,7 @@ from __future__ import (
     print_function,
     division,
     )
+native_str = str
 str = type('')
 
 
@@ -220,9 +221,9 @@ class CompoundFileReader(object):
         self._normal_sector_size = 1 << normal_sector_size
         self._mini_sector_size = 1 << mini_sector_size
         self._normal_sector_format = st.Struct(
-                bytes('<%dL' % (self._normal_sector_size // 4)))
+                native_str('<%dL' % (self._normal_sector_size // 4)))
         self._mini_sector_format = st.Struct(
-                bytes('<%dL' % (self._mini_sector_size // 4)))
+                native_str('<%dL' % (self._mini_sector_size // 4)))
         assert self._normal_sector_size == self._normal_sector_format.size
         assert self._mini_sector_size == self._mini_sector_format.size
 
@@ -329,7 +330,7 @@ class CompoundFileReader(object):
         # In order to avoid infinite loops (in the case of a stupid or
         # malicious file) we keep track of each sector we seek to and quit in
         # the event of a repeat
-        self._master_fat = array(b'L')
+        self._master_fat = array(native_str('L'))
         count = self._master_sector_count
         checked = 0
         sectors = set()
@@ -338,7 +339,8 @@ class CompoundFileReader(object):
         # header and the next sector of the master-FAT is stored in the header
         offset = COMPOUND_HEADER.size
         self._master_fat.extend(
-                st.unpack(b'<109L', self._mmap[offset:offset + (109 * 4)]))
+                st.unpack(native_str('<109L'),
+                    self._mmap[offset:offset + (109 * 4)]))
         sector = self._master_first_sector
         if count == 0 and sector == FREE_SECTOR:
             warnings.warn(
@@ -418,7 +420,7 @@ class CompoundFileReader(object):
         # to (no need to check for loops or invalid sectors here though - the
         # _load_master_fat method takes of those). After reading the normal-FAT
         # we check the master-FAT and normal-FAT sectors are marked correctly.
-        self._normal_fat = array(b'L')
+        self._normal_fat = array(native_str('L'))
         # XXX This is the major cost at the moment - reading the fragmented
         # sectors of the FAT into an array. Perhaps look at optimizing reads
         # of contiguous sectors? Or make the array lazy-read whenever a block
@@ -456,7 +458,7 @@ class CompoundFileReader(object):
         if self._mini_sector_count * self._normal_sector_size > 100*1024*1024:
             raise CompoundFileError(
                     'excessively large mini-FAT (malicious file?)')
-        self._mini_fat = array(b'L')
+        self._mini_fat = array(native_str('L'))
 
         # Construction of the stream below will construct the list of sectors
         # the mini-FAT occupies, and will constrain the length to the declared

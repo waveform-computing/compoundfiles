@@ -28,6 +28,7 @@ from __future__ import (
     print_function,
     division,
     )
+native_str = str
 str = type('')
 
 
@@ -51,7 +52,7 @@ class CompoundFileStream(io.RawIOBase):
     """
     def __init__(self):
         super(CompoundFileStream, self).__init__()
-        self._sectors = array(b'L')
+        self._sectors = array(native_str('L'))
         self._sector_index = None
         self._sector_offset = None
 
