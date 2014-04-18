@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # A library for reading Microsoft's OLE Compound Document format
@@ -46,6 +46,15 @@ else:
     raise ValueError('Unrecognized major version of Python')
 
 HERE = os.path.abspath(os.path.dirname(__file__))
+
+# Workaround <http://bugs.python.org/issue10945>
+import codecs
+try:
+    codecs.lookup('mbcs')
+except LookupError:
+    ascii = codecs.lookup('ascii')
+    func = lambda name, enc=ascii: {True: enc}.get(name=='mbcs')
+    codecs.register(func)
 
 # Workaround <http://www.eby-sarna.com/pipermail/peak/2010-May/003357.html>
 try:
@@ -115,14 +124,13 @@ def main():
                 for c in __classifiers__
                 if c.startswith('License ::')
                 ][0],
-            keywords             = ' '.join(__keywords__),
+            keywords             = __keywords__,
             packages             = find_packages(),
             package_data         = {},
             include_package_data = True,
             platforms            = __platforms__,
             install_requires     = __requires__,
             extras_require       = __extra_requires__,
-            zip_safe             = True,
             entry_points         = __entry_points__,
             )
 
