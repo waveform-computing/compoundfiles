@@ -19,11 +19,11 @@ To install from the author's `PPA`_::
 
     $ sudo add-apt-repository ppa://waveform/ppa
     $ sudo apt-get update
-    $ sudo apt-get install python-compound-files
+    $ sudo apt-get install python-compoundfiles
 
 To remove the installation::
 
-    $ sudo apt-get remove python-compound-files
+    $ sudo apt-get remove python-compoundfiles
 
 
 .. _pypi_install:
