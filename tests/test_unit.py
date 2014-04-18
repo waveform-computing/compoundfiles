@@ -38,6 +38,46 @@ import pytest
 from mock import MagicMock, patch, call
 
 
+V3_HEADER = (
+    compoundfiles.const.COMPOUND_MAGIC, # magic
+    b'\0' * 16,                         # uuid
+    0,                                  # minor ver
+    3,                                  # major ver
+    0xFFFE,                             # BOM
+    9,                                  # 512 byte sectors
+    6,                                  # 64 byte mini-sectors
+    b'\0' * 6,                          # unused
+    0,                                  # dir sector count
+    0,                                  # normal sector count
+    0,                                  # dir first sector
+    0,                                  # txn signature
+    0,                                  # mini FAT size limit
+    0,                                  # mini first sector
+    0,                                  # mini sector count
+    compoundfiles.const.END_OF_CHAIN,   # master first sector
+    0,                                  # master sector count
+    )
+
+V4_HEADER = (
+    compoundfiles.const.COMPOUND_MAGIC, # magic
+    b'\0' * 16,                         # uuid
+    0,                                  # minor ver
+    4,                                  # major ver
+    0xFFFE,                             # BOM
+    12,                                 # 4096 byte sectors
+    6,                                  # 64 byte mini-sectors
+    b'\0' * 6,                          # unused
+    1,                                  # dir sector count
+    0,                                  # normal sector count
+    0,                                  # dir first sector
+    0,                                  # txn signature
+    0,                                  # mini FAT size limit
+    0,                                  # mini first sector
+    0,                                  # mini sector count
+    compoundfiles.const.END_OF_CHAIN,   # master first sector
+    0,                                  # master sector count
+    )
+
 def test_reader_open_filename():
     with patch('io.open') as m:
         try:
@@ -64,25 +104,28 @@ def test_reader_open_invalid():
 def test_reader_header_magic():
     with patch('mmap.mmap') as mmap, \
             patch('compoundfiles.reader.COMPOUND_HEADER') as header:
-        header.unpack.return_value = [0] * 17
+        header.unpack.return_value = list(V3_HEADER)
+        header.unpack.return_value[0] = 0
         with pytest.raises(compoundfiles.CompoundFileInvalidMagicError):
             compoundfiles.CompoundFileReader(MagicMock())
 
 def test_reader_header_bom():
     with patch('mmap.mmap') as mmap, \
             patch('compoundfiles.reader.COMPOUND_HEADER') as header:
-        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC] + [0] * 16
+        header.unpack.return_value = list(V3_HEADER)
+        header.unpack.return_value[4] = 0xFEFF
         with pytest.raises(compoundfiles.CompoundFileInvalidBOMError):
             compoundfiles.CompoundFileReader(MagicMock())
 
 def test_reader_silly_normal_sector_size():
     with patch('mmap.mmap') as mmap, \
             patch('compoundfiles.reader.COMPOUND_HEADER') as header:
-        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC, 0, 0, 0, 0xFFFE, 21] + [0] * 11
+        header.unpack.return_value = list(V3_HEADER)
+        header.unpack.return_value[5] = 21
         with warnings.catch_warnings(record=True) as w:
             try:
                 compoundfiles.CompoundFileReader(MagicMock())
-            except IOError:
+            except:
                 pass
             assert len(w) > 0
             assert issubclass(w[0].category, compoundfiles.CompoundFileSectorSizeWarning)
