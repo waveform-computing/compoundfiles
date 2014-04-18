@@ -40,13 +40,21 @@ import tempfile
 import shutil
 from array import array
 
-from compoundfiles.errors import CompoundFileError, CompoundFileWarning
-from compoundfiles.entities import CompoundFileEntity
-from compoundfiles.streams import (
+from .errors import (
+    CompoundFileError,
+    CompoundFileInvalidMagicError,
+    CompoundFileInvalidBOMError,
+    CompoundFileVersionError,
+    CompoundFileWarning,
+    CompoundFileHeaderWarning,
+    CompoundFileSectorSizeWarning,
+    )
+from .entities import CompoundFileEntity
+from .streams import (
     CompoundFileNormalStream,
     CompoundFileMiniStream,
     )
-from compoundfiles.const import (
+from .const import (
     COMPOUND_MAGIC,
     FREE_SECTOR,
     END_OF_CHAIN,
@@ -201,25 +209,27 @@ class CompoundFileReader(object):
 
         # Check the header for basic correctness
         if magic != COMPOUND_MAGIC:
-            raise CompoundFileError(
+            raise CompoundFileInvalidMagicError(
                     '%s does not appear to be an OLE compound '
                     'document' % filename_or_obj)
         if bom != 0xFFFE:
-            raise CompoundFileError(
+            raise CompoundFileInvalidBOMError(
                     '%s uses an unsupported byte ordering (big '
                     'endian)' % filename_or_obj)
-        if normal_sector_size > 20:
-            warnings.warn(
-                    'FAT sector size is excessively large, assuming 512',
-                    CompoundFileWarning)
-            normal_sector_size = 9
-        if mini_sector_size >= normal_sector_size:
-            warnings.warn(
-                    'mini FAT sector size greater than or equal to FAT '
-                    'sector size, assuming 64', CompoundFileWarning)
-            mini_sector_size = 6
         self._normal_sector_size = 1 << normal_sector_size
         self._mini_sector_size = 1 << mini_sector_size
+        if not (128 <= self._normal_sector_size <= 1048576):
+            warnings.warn(
+                    'FAT sector size is silly (%d bytes), '
+                    'assuming 512' % self._normal_sector_size,
+                    CompoundFileSectorSizeWarning)
+            self._normal_sector_size = 512
+        if not (8 <= self._mini_sector_size < self._normal_sector_size):
+            warnings.warn(
+                    'mini FAT sector size is silly (%d bytes), '
+                    'assuming 64' % self._mini_sector_size,
+                    CompoundFileSectorSizeWarning)
+            self._mini_sector_size = 64
         self._normal_sector_format = st.Struct(
                 native_str('<%dL' % (self._normal_sector_size // 4)))
         self._mini_sector_format = st.Struct(
@@ -232,35 +242,39 @@ class CompoundFileReader(object):
             if self._normal_sector_size != 512:
                 warnings.warn(
                         'unexpected sector size in v3 file '
-                        '(%d)' % self._normal_sector_size, CompoundFileWarning)
+                        '(%d)' % self._normal_sector_size,
+                        CompoundFileSectorSizeWarning)
             if self._dir_sector_count != 0:
                 warnings.warn(
                         'directory chain sector count is non-zero '
-                        '(%d)' % self._dir_sector_count, CompoundFileWarning)
+                        '(%d)' % self._dir_sector_count,
+                        CompoundFileHeaderWarning)
         elif self._dll_version == 4:
             if self._normal_sector_size != 4096:
                 warnings.warn(
                         'unexpected sector size in v4 file '
-                        '(%d)' % self._normal_sector_size, CompoundFileWarning)
+                        '(%d)' % self._normal_sector_size,
+                        CompoundFileSectorSizeWarning)
         else:
-            raise CompoundFileError(
+            raise CompoundFileVersionError(
                     'unsupported DLL version (%d)' % self._dll_version)
         if self._mini_sector_size != 64:
             warnings.warn(
                     'unexpected mini sector size '
-                    '(%d)' % self._mini_sector_size, CompoundFileWarning)
+                    '(%d)' % self._mini_sector_size,
+                    CompoundFileSectorSizeWarning)
         if uuid != (b'\0' * 16):
             warnings.warn(
                     'CLSID of compound file is non-zero (%r)' % uuid,
-                    CompoundFileWarning)
+                    CompoundFileHeaderWarning)
         if txn_signature != 0:
             warnings.warn(
                     'transaction signature is non-zero '
-                    '(%d)' % txn_signature, CompoundFileWarning)
+                    '(%d)' % txn_signature, CompoundFileHeaderWarning)
         if unused != (b'\0' * 6):
             warnings.warn(
                     'unused header bytes are non-zero '
-                    '(%r)' % unused, CompoundFileWarning)
+                    '(%r)' % unused, CompoundFileHeaderWarning)
         self._file_size = self._mmap.size()
         self._header_size = max(self._normal_sector_size, 512)
         self._max_sector = (self._file_size - self._header_size) // self._normal_sector_size

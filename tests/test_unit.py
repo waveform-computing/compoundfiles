@@ -32,39 +32,103 @@ str = type('')
 
 
 import io
+import warnings
 import compoundfiles
 import pytest
-import mock
+from mock import MagicMock, patch, call
 
 
 def test_reader_open_filename():
-    with mock.patch('io.open') as mock_open:
+    with patch('io.open') as m:
         try:
             compoundfiles.CompoundFileReader('foo.doc')
         except ValueError:
             pass
-        mock_open.assert_called_once_with('foo.doc', 'rb')
-
-def test_reader_open_fileno():
-    fileobj = mock.Mock()
-    try:
-        compoundfiles.CompoundFileReader(fileobj)
-    except TypeError:
-        pass
-    fileobj.fileno.assert_called_with()
+        assert m.mock_calls[:2] == [call('foo.doc', 'rb'), call().fileno()]
 
 def test_reader_open_stream():
-    with mock.patch('tempfile.SpooledTemporaryFile') as tempf, \
-            mock.patch('shutil.copyfileobj') as copy:
+    with patch('tempfile.SpooledTemporaryFile') as m_temp, \
+            patch('shutil.copyfileobj') as m_copy:
         stream = io.BytesIO()
         try:
             compoundfiles.CompoundFileReader(stream)
         except ValueError:
             pass
-        tempf.assert_called_once_with()
-        copy.assert_called_once_with(stream, tempf.return_value)
+        assert m_temp.mock_calls[:2] == [call(), call().fileno()]
+        assert m_copy.mock_calls == [call(stream, m_temp.return_value)]
 
 def test_reader_open_invalid():
     with pytest.raises(IOError):
         compoundfiles.CompoundFileReader(object())
 
+def test_reader_header_magic():
+    with patch('mmap.mmap') as mmap, \
+            patch('compoundfiles.reader.COMPOUND_HEADER') as header:
+        header.unpack.return_value = [0] * 17
+        with pytest.raises(compoundfiles.CompoundFileInvalidMagicError):
+            compoundfiles.CompoundFileReader(MagicMock())
+
+def test_reader_header_bom():
+    with patch('mmap.mmap') as mmap, \
+            patch('compoundfiles.reader.COMPOUND_HEADER') as header:
+        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC] + [0] * 16
+        with pytest.raises(compoundfiles.CompoundFileInvalidBOMError):
+            compoundfiles.CompoundFileReader(MagicMock())
+
+def test_reader_silly_normal_sector_size():
+    with patch('mmap.mmap') as mmap, \
+            patch('compoundfiles.reader.COMPOUND_HEADER') as header:
+        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC, 0, 0, 0, 0xFFFE, 21] + [0] * 11
+        with warnings.catch_warnings(record=True) as w:
+            try:
+                compoundfiles.CompoundFileReader(MagicMock())
+            except IOError:
+                pass
+            assert len(w) > 0
+            assert issubclass(w[0].category, compoundfiles.CompoundFileSectorSizeWarning)
+
+def test_reader_silly_mini_sector_size():
+    with patch('mmap.mmap') as mmap, \
+            patch('compoundfiles.reader.COMPOUND_HEADER') as header:
+        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC, 0, 0, 0, 0xFFFE, 9, 9] + [0] * 10
+        with warnings.catch_warnings(record=True) as w:
+            try:
+                compoundfiles.CompoundFileReader(MagicMock())
+            except IOError:
+                pass
+            assert len(w) > 0
+            assert issubclass(w[0].category, compoundfiles.CompoundFileSectorSizeWarning)
+
+def test_reader_strange_v3_settings():
+    with patch('mmap.mmap') as mmap, \
+            patch('compoundfiles.reader.COMPOUND_HEADER') as header:
+        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC, 0, 0, 3, 0xFFFE, 10, 9, 0, 1] + [0] * 8
+        with warnings.catch_warnings(record=True) as w:
+            try:
+                compoundfiles.CompoundFileReader(MagicMock())
+            except:
+                pass
+            assert len(w) > 2
+            # XXX Order of warnings shouldn't matter...
+            assert issubclass(w[0].category, compoundfiles.CompoundFileSectorSizeWarning)
+            assert issubclass(w[1].category, compoundfiles.CompoundFileHeaderWarning)
+            assert issubclass(w[2].category, compoundfiles.CompoundFileSectorSizeWarning)
+
+def test_reader_strange_v4_settings():
+    with patch('mmap.mmap') as mmap, \
+            patch('compoundfiles.reader.COMPOUND_HEADER') as header:
+        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC, 0, 0, 4, 0xFFFE, 10, 9, 0, 1] + [0] * 8
+        with warnings.catch_warnings(record=True) as w:
+            try:
+                compoundfiles.CompoundFileReader(MagicMock())
+            except:
+                pass
+            assert len(w) > 0
+            assert issubclass(w[0].category, compoundfiles.CompoundFileSectorSizeWarning)
+
+def test_reader_invalid_dll_version():
+    with patch('mmap.mmap') as mmap, \
+            patch('compoundfiles.reader.COMPOUND_HEADER') as header:
+        header.unpack.return_value = [compoundfiles.const.COMPOUND_MAGIC, 0, 0, 5, 0xFFFE, 10, 9, 0, 1] + [0] * 8
+        with pytest.raises(compoundfiles.CompoundFileVersionError):
+            compoundfiles.CompoundFileReader(MagicMock())

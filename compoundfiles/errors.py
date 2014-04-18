@@ -36,9 +36,34 @@ class CompoundFileError(IOError):
     Base class for exceptions arising from reading compound documents.
     """
 
+class CompoundFileInvalidMagicError(CompoundFileError):
+    """
+    Error raised when a compound document has an invalid magic number.
+    """
+
+class CompoundFileInvalidBOMError(CompoundFileError):
+    """
+    Error raised when a compound document is anything other than little-endian.
+    """
+
+class CompoundFileVersionError(CompoundFileError):
+    """
+    Error raised when the library version of a compound document isn't recognized.
+    """
+
 
 class CompoundFileWarning(Warning):
     """
     Base class for warnings arising from reading compound documents.
+    """
+
+class CompoundFileHeaderWarning(CompoundFileWarning):
+    """
+    Base class for warnings about header attributes.
+    """
+
+class CompoundFileSectorSizeWarning(CompoundFileHeaderWarning):
+    """
+    Base class for warnings about strange sector sizes in compound documents.
     """
 

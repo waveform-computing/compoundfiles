@@ -70,7 +70,15 @@ from __future__ import (
 str = type('')
 
 
-from compoundfiles.errors import CompoundFileError, CompoundFileWarning
+from compoundfiles.errors import (
+    CompoundFileError,
+    CompoundFileInvalidMagicError,
+    CompoundFileInvalidBOMError,
+    CompoundFileVersionError,
+    CompoundFileWarning,
+    CompoundFileHeaderWarning,
+    CompoundFileSectorSizeWarning,
+    )
 from compoundfiles.streams import CompoundFileStream
 from compoundfiles.entities import CompoundFileEntity
 from compoundfiles.reader import CompoundFileReader
@@ -79,6 +87,8 @@ from compoundfiles.reader import CompoundFileReader
 __all__ = [
     'CompoundFileError',
     'CompoundFileWarning',
+    'CompoundFileSectorSizeWarning',
+    'CompoundFileNormalSectorSizeWarning',
     'CompoundFileReader',
     'CompoundFileStream',
     'CompoundFileEntity',
