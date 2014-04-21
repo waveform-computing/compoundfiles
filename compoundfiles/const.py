@@ -28,6 +28,7 @@ from __future__ import (
     print_function,
     division,
     )
+native_str = str
 str = type('')
 
 
@@ -56,42 +57,42 @@ DIR_ROOT       = 5 # element is the root storage object
 FILENAME_ENCODING = 'latin-1'
 
 
-COMPOUND_HEADER = st.Struct(b''.join((
-    b'<',    # little-endian format
-    b'8s',   # magic string
-    b'16s',  # file UUID (unused)
-    b'H',    # file header major version
-    b'H',    # file header minor version
-    b'H',    # byte order mark
-    b'H',    # sector size (actual size is 2**sector_size)
-    b'H',    # mini sector size (actual size is 2**short_sector_size)
-    b'6s',   # unused
-    b'L',    # directory chain sector count
-    b'L',    # normal-FAT sector count
-    b'L',    # ID of first sector of the normal-FAT
-    b'L',    # transaction signature (unused)
-    b'L',    # minimum size of a normal stream
-    b'L',    # ID of first sector of the mini-FAT
-    b'L',    # mini-FAT sector count
-    b'L',    # ID of first sector of the master-FAT
-    b'L',    # master-FAT sector count
-    )))
+COMPOUND_HEADER = st.Struct(native_str(''.join((
+    native_str('<'),    # little-endian format
+    native_str('8s'),   # magic string
+    native_str('16s'),  # file UUID (unused)
+    native_str('H'),    # file header major version
+    native_str('H'),    # file header minor version
+    native_str('H'),    # byte order mark
+    native_str('H'),    # sector size (actual size is 2**sector_size)
+    native_str('H'),    # mini sector size (actual size is 2**short_sector_size)
+    native_str('6s'),   # unused
+    native_str('L'),    # directory chain sector count
+    native_str('L'),    # normal-FAT sector count
+    native_str('L'),    # ID of first sector of the normal-FAT
+    native_str('L'),    # transaction signature (unused)
+    native_str('L'),    # minimum size of a normal stream
+    native_str('L'),    # ID of first sector of the mini-FAT
+    native_str('L'),    # mini-FAT sector count
+    native_str('L'),    # ID of first sector of the master-FAT
+    native_str('L'),    # master-FAT sector count
+    ))))
 
-DIR_HEADER = st.Struct(b''.join((
-    b'<',    # little-endian format
-    b'64s',  # NULL-terminated filename in UTF-16 little-endian encoding
-    b'H',    # length of filename (why?!)
-    b'B',    # dir-entry type
-    b'B',    # red (0) or black (1) entry
-    b'L',    # ID of left-sibling node
-    b'L',    # ID of right-sibling node
-    b'L',    # ID of children's root node
-    b'16s',  # dir-entry UUID (unused)
-    b'L',    # user flags (unused)
-    b'Q',    # creation timestamp
-    b'Q',    # modification timestamp
-    b'L',    # start sector of stream
-    b'L',    # low 32-bits of stream size
-    b'L',    # high 32-bits of stream size
-    )))
+DIR_HEADER = st.Struct(native_str(''.join((
+    native_str('<'),    # little-endian format
+    native_str('64s'),  # NULL-terminated filename in UTF-16 little-endian encoding
+    native_str('H'),    # length of filename (why?!)
+    native_str('B'),    # dir-entry type
+    native_str('B'),    # red (0) or black (1) entry
+    native_str('L'),    # ID of left-sibling node
+    native_str('L'),    # ID of right-sibling node
+    native_str('L'),    # ID of children's root node
+    native_str('16s'),  # dir-entry UUID (unused)
+    native_str('L'),    # user flags (unused)
+    native_str('Q'),    # creation timestamp
+    native_str('Q'),    # modification timestamp
+    native_str('L'),    # start sector of stream
+    native_str('L'),    # low 32-bits of stream size
+    native_str('L'),    # high 32-bits of stream size
+    ))))
 

@@ -36,19 +36,54 @@ class CompoundFileError(IOError):
     Base class for exceptions arising from reading compound documents.
     """
 
-class CompoundFileInvalidMagicError(CompoundFileError):
+class CompoundFileHeaderError(CompoundFileError):
+    """
+    Base class for exceptions caused by issues in the document header.
+    """
+
+class CompoundFileMasterFatError(CompoundFileError):
+    """
+    Base class for exceptions caused by issues in the master FAT.
+    """
+
+class CompoundFileNormalFatError(CompoundFileError):
+    """
+    Base class for exceptions caused by issues in the normal FAT.
+    """
+
+class CompoundFileMiniFatError(CompoundFileError):
+    """
+    Base class for exceptions caused by issues in the mini FAT.
+    """
+
+class CompoundFileInvalidMagicError(CompoundFileHeaderError):
     """
     Error raised when a compound document has an invalid magic number.
     """
 
-class CompoundFileInvalidBOMError(CompoundFileError):
+class CompoundFileInvalidBomError(CompoundFileHeaderError):
     """
     Error raised when a compound document is anything other than little-endian.
     """
 
-class CompoundFileVersionError(CompoundFileError):
+class CompoundFileVersionError(CompoundFileHeaderError):
     """
     Error raised when the library version of a compound document isn't recognized.
+    """
+
+class CompoundFileLargeNormalFatError(CompoundFileNormalFatError):
+    """
+    Error raised when the document has an excessively large FAT.
+    """
+
+class CompoundFileLargeMiniFatError(CompoundFileMiniFatError):
+    """
+    Error raised when the document has an excessively large mini FAT.
+    """
+
+class CompoundFileMasterLoopError(CompoundFileMasterFatError):
+    """
+    Error raised when a loop is detected in the master FAT.
     """
 
 
@@ -62,8 +97,32 @@ class CompoundFileHeaderWarning(CompoundFileWarning):
     Base class for warnings about header attributes.
     """
 
+class CompoundFileMasterFatWarning(CompoundFileWarning):
+    """
+    Base class for warnings about master FAT issues.
+    """
+
+class CompoundFileNormalFatWarning(CompoundFileWarning):
+    """
+    Base class for warnings about normal FAT issues.
+    """
+
+class CompoundFileMiniFatWarning(CompoundFileWarning):
+    """
+    Base class for warnings about mini FAT issues.
+    """
+
 class CompoundFileSectorSizeWarning(CompoundFileHeaderWarning):
     """
     Base class for warnings about strange sector sizes in compound documents.
     """
 
+class CompoundFileMasterSectorWarning(CompoundFileNormalFatWarning):
+    """
+    Class for warnings about mis-marked master FAT sectors.
+    """
+
+class CompoundFileNormalSectorWarning(CompoundFileNormalFatWarning):
+    """
+    Class for warnings about mis-marked normal FAT sectors.
+    """

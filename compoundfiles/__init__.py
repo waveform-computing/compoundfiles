@@ -72,12 +72,24 @@ str = type('')
 
 from compoundfiles.errors import (
     CompoundFileError,
+    CompoundFileHeaderError,
+    CompoundFileMasterFatError,
+    CompoundFileNormalFatError,
+    CompoundFileMiniFatError,
     CompoundFileInvalidMagicError,
-    CompoundFileInvalidBOMError,
+    CompoundFileInvalidBomError,
     CompoundFileVersionError,
+    CompoundFileLargeNormalFatError,
+    CompoundFileLargeMiniFatError,
+    CompoundFileMasterLoopError,
     CompoundFileWarning,
     CompoundFileHeaderWarning,
+    CompoundFileMasterFatWarning,
+    CompoundFileNormalFatWarning,
+    CompoundFileMiniFatWarning,
     CompoundFileSectorSizeWarning,
+    CompoundFileMasterSectorWarning,
+    CompoundFileNormalSectorWarning,
     )
 from compoundfiles.streams import CompoundFileStream
 from compoundfiles.entities import CompoundFileEntity
