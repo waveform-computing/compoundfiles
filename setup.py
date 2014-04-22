@@ -63,14 +63,14 @@ except ImportError:
     pass
 
 __project__      = 'compoundfiles'
-__version__      = '0.1'
+__version__      = '0.2'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'https://pypi.python.org/pypi/compoundfiles/'
-__platforms__    = ['ALL']
+__platforms__    = 'ALL'
 
 __classifiers__ = [
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',
     'License :: OSI Approved :: MIT License',
     'Operating System :: Unix',

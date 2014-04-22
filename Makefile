@@ -8,7 +8,7 @@ COVERAGE=coverage
 PYFLAGS=
 DEST_DIR=/
 
-# Horrid hack to ensure setuptools is installed in our python environment. This
+# Horrid hack to ensure setuptools is installed in our Python environment. This
 # is necessary with Python 3.3's venvs which don't install it by default.
 ifeq ($(shell python -c "import setuptools" 2>&1),)
 SETUPTOOLS:=
