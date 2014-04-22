@@ -39,8 +39,6 @@ import pytest
 import struct
 from mock import MagicMock, patch, call
 
-warnings.simplefilter('error')
-
 V3_HEADER = (
     compoundfiles.const.COMPOUND_MAGIC, # 0  magic
     b'\0' * 16,                         # 1  uuid
@@ -81,6 +79,9 @@ V4_HEADER = (
     0,                                  # 16 master sector count
     )
 
+
+def setup_module(module):
+    warnings.simplefilter('error')
 
 class mmap_mock(bytes):
     def size(self):

@@ -33,10 +33,13 @@ str = type('')
 
 import compoundfiles
 import pytest
+import warnings
 from collections import namedtuple
 
 DirEntry = namedtuple('DirEntry', ('name', 'isfile', 'size'))
 
+def setup_module(module):
+    warnings.simplefilter('always')
 
 def verify_contents(doc, contents):
     for entry in contents:
