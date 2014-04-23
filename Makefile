@@ -139,6 +139,8 @@ release: $(PY_SOURCES) $(DOC_SOURCES) $(DEB_SOURCES)
 	test -z "$(shell git status --porcelain)"
 	# update the changelog with new release information
 	dch --newversion $(VER)-1$(DEB_SUFFIX) --controlmaint
+	# ensure all packages build successfully before committing
+	$(MAKE) dist
 	# commit the changes and add a new tag
 	git commit debian/changelog -m "Updated changelog for release $(VER)"
 	git tag -s release-$(VER) -m "Release $(VER)"
