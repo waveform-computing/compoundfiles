@@ -33,10 +33,10 @@ Description: Library for parsing and reading OLE Compound Documents.
 Package: python-compoundfiles-docs
 Architecture: all
 Section: doc
-Depends: ${sphinxdoc:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${sphinxdoc:Depends}
 Description: Documentation for the library for reading OLE Compound Documents.
  compoundfiles is a library for working with Microsoft OLE Compound Documents,
  which formed the basis for the older binary Office formats, and the newer
  Advanced Authoring Format.
  .
- This is the version-independant documentation for the package.
+ This is the version-independent documentation for the package.
