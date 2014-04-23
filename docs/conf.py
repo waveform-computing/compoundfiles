@@ -35,7 +35,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import setup as _setup
 
-# -- General configuration ---------------------------------------------------
+# -- General configuration ------------------------------------------------
 
 #needs_sphinx = '1.0'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx', 'sphinx.ext.viewcode']
@@ -58,15 +58,15 @@ pygments_style = 'sphinx'
 #modindex_common_prefix = []
 #keep_warnings = False
 
-# -- Autodoc configuration ---------------------------------------------------
+# -- Autodoc configuration ------------------------------------------------
 
 autodoc_member_order = 'groupwise'
 
-# -- Intersphinx configuration -----------------------------------------------
+# -- Intersphinx configuration --------------------------------------------
 
 intersphinx_mapping = {'python': ('http://docs.python.org/3.3', None)}
 
-# -- Options for HTML output ---------------------------------------------------
+# -- Options for HTML output ----------------------------------------------
 
 html_theme = 'default'
 #html_theme_options = {}
@@ -76,6 +76,7 @@ html_theme = 'default'
 #html_logo = None
 #html_favicon = None
 html_static_path = ['_static']
+#html_extra_path = []
 #html_last_updated_fmt = '%b %d, %Y'
 #html_use_smartypants = True
 #html_sidebars = {}
@@ -90,7 +91,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 htmlhelp_basename = '%sdoc' % _setup.__project__
 
-# -- Options for LaTeX output --------------------------------------------------
+# -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
     'papersize': 'a4paper',
@@ -100,11 +101,11 @@ latex_elements = {
 
 latex_documents = [
     (
-        'index',                            # source start file
-        '%s.tex' % _setup.__project__,      # target filename
-        '%s Documentation' % project,       # title
-        _setup.__author__,                  # author
-        'manual',                           # documentclass
+        'index',                       # source start file
+        '%s.tex' % _setup.__project__, # target filename
+        '%s Documentation' % project,  # title
+        _setup.__author__,             # author
+        'manual',                      # documentclass
         ),
     ]
 
@@ -115,17 +116,17 @@ latex_documents = [
 #latex_appendices = []
 #latex_domain_indices = True
 
-# -- Options for manual page output --------------------------------------------
+# -- Options for manual page output ---------------------------------------
 
 man_pages = []
 
 #man_show_urls = False
 
-# -- Options for Texinfo output ------------------------------------------------
+# -- Options for Texinfo output -------------------------------------------
 
 texinfo_documents = []
 
 #texinfo_appendices = []
 #texinfo_domain_indices = True
 #texinfo_show_urls = 'footnote'
-
+#texinfo_no_detailmenu = False
