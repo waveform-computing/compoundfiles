@@ -1,3 +1,12 @@
+compoundfiles (0.2-1~ppa1) precise; urgency=low
+
+  * Fixed a nasty bug where opening multiple streams in a compound document
+    would result in shared file pointer state (#4)
+  * Fixed Python 3 compatibility - many thanks to Martin Panter for the bug
+    report! (#5)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Wed, 23 Apr 2014 01:03:29 +0100
+
 compoundfiles (0.1-1~ppa1) precise; urgency=low
 
   * Initial release
