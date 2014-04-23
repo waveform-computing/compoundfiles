@@ -9,7 +9,7 @@ X-Python-Version: >= 2.7
 X-Python3-Version: >= 3.2
 
 Package: python-compoundfiles
-Architecture: any
+Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
 Suggests: python-compoundfiles-docs
 Description: Library for parsing and reading OLE Compound Documents.
@@ -20,7 +20,7 @@ Description: Library for parsing and reading OLE Compound Documents.
  This is the Python 2 version of the package.
 
 Package: python3-compoundfiles
-Architecture: any
+Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}
 Suggests: python-compoundfiles-docs
 Description: Library for parsing and reading OLE Compound Documents.
