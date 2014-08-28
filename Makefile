@@ -8,7 +8,7 @@ COVERAGE=coverage
 PYFLAGS=
 DEST_DIR=/
 
-# Horrid hack to ensure setuptools is installed in our Python environment. This
+# Horrid hack to ensure setuptools is installed in our python environment. This
 # is necessary with Python 3.3's venvs which don't install it by default.
 ifeq ($(shell python -c "import setuptools" 2>&1),)
 SETUPTOOLS:=
@@ -43,7 +43,8 @@ DEB_SOURCES:=debian/changelog \
 DOC_SOURCES:=docs/conf.py \
 	$(wildcard docs/*.png) \
 	$(wildcard docs/*.svg) \
-	$(wildcard docs/*.rst)
+	$(wildcard docs/*.rst) \
+	$(wildcard docs/*.pdf)
 
 # Calculate the name of all outputs
 DIST_EGG=dist/$(NAME)-$(VER)-$(PYVER).egg
@@ -55,6 +56,7 @@ DIST_DEB=dist/python-$(NAME)_$(VER)-1$(DEB_SUFFIX)_all.deb \
 DIST_DSC=dist/$(NAME)_$(VER)-1$(DEB_SUFFIX).tar.gz \
 	dist/$(NAME)_$(VER)-1$(DEB_SUFFIX).dsc \
 	dist/$(NAME)_$(VER)-1$(DEB_SUFFIX)_source.changes
+MAN_PAGES=
 
 
 # Default target
@@ -77,7 +79,7 @@ install:
 	$(PYTHON) $(PYFLAGS) setup.py install --root $(DEST_DIR)
 
 doc: $(DOC_SOURCES)
-	$(PYTHON) $(PYFLAGS) setup.py build_sphinx -b html
+	$(MAKE) -C docs html latexpdf
 
 source: $(DIST_TAR) $(DIST_ZIP)
 
@@ -92,7 +94,7 @@ deb: $(DIST_DEB) $(DIST_DSC)
 dist: $(DIST_EGG) $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_ZIP)
 
 develop: tags
-	$(PIP) install -e .
+	$(PIP) install -e .[doc,test]
 
 test:
 	$(COVERAGE) run -m $(PYTEST) tests -v
@@ -101,11 +103,17 @@ test:
 clean:
 	$(PYTHON) $(PYFLAGS) setup.py clean
 	$(MAKE) -f $(CURDIR)/debian/rules clean
+	$(MAKE) -C docs clean
 	rm -fr build/ dist/ $(NAME).egg-info/ tags
 	find $(CURDIR) -name "*.pyc" -delete
 
 tags: $(PY_SOURCES)
 	ctags -R --exclude="build/*" --exclude="debian/*" --exclude="docs/*" --languages="Python"
+
+$(MAN_PAGES): $(DOC_SOURCES)
+	$(MAKE) -C docs man
+	mkdir -p man/
+	cp docs/_build/man/*.1 man/
 
 $(DIST_TAR): $(PY_SOURCES)
 	$(PYTHON) $(PYFLAGS) setup.py sdist --formats gztar
@@ -116,25 +124,26 @@ $(DIST_ZIP): $(PY_SOURCES)
 $(DIST_EGG): $(PY_SOURCES)
 	$(PYTHON) $(PYFLAGS) setup.py bdist_egg
 
-$(DIST_DEB): $(PY_SOURCES) $(DEB_SOURCES)
-	# build the binary packages in the parent directory then rename it to
+$(DIST_DEB): $(PY_SOURCES) $(DEB_SOURCES) $(MAN_PAGES)
+	# build the binary package in the parent directory then rename it to
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -b -i -I -Idist -Ibuild -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -rfakeroot
+	debuild -b -i -I -Idist -Ibuild -Idocs/_build -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -I*.xcf -rfakeroot
 	mkdir -p dist/
 	for f in $(DIST_DEB); do cp ../$${f##*/} dist/; done
 
-$(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES)
+$(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES) $(MAN_PAGES)
 	# build the source package in the parent directory then rename it to
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -S -i -I -Idist -Ibuild -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -rfakeroot
+	debuild -S -i -I -Idist -Ibuild -Idocs/_build -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -I*.xcf -rfakeroot
 	mkdir -p dist/
 	for f in $(DIST_DSC); do cp ../$${f##*/} dist/; done
 
 release: $(PY_SOURCES) $(DOC_SOURCES) $(DEB_SOURCES)
+	$(MAKE) clean
 	# ensure there are no current uncommitted changes
 	test -z "$(shell git status --porcelain)"
 	# update the changelog with new release information
@@ -153,6 +162,7 @@ upload: $(PY_SOURCES) $(DOC_SOURCES) $(DIST_DEB) $(DIST_DSC)
 	# build the deb source archive and upload to the PPA
 	dput waveform-ppa dist/$(NAME)_$(VER)-1$(DEB_SUFFIX)_source.changes
 	git push --tags
+	git push
 
 .PHONY: all install develop test doc source egg zip tar deb dist clean tags release upload
 
