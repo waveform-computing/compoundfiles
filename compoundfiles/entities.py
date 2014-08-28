@@ -131,7 +131,7 @@ class CompoundFileEntity(object):
             warnings.warn(
                 CompoundFileDirNameWarning(
                     'missing NULL terminator in name'))
-            self.name = self.name[:name_len]
+            self.name = self.name[:(name_len // 2) - 1]
         if index == 0:
             if self._entry_type != DIR_ROOT:
                 warnings.warn(
@@ -206,11 +206,11 @@ class CompoundFileEntity(object):
                 warnings.warn(
                     CompoundFileDirSizeWarning(
                         'invalid size in small sector file'))
+                size_high = 0
             if size_low >= 1<<31:
                 warnings.warn(
                     CompoundFileDirSizeWarning(
                         'size too large for small sector file'))
-            size_high = 0
         self.size = (size_high << 32) | size_low
         epoch = dt.datetime(1601, 1, 1)
         self.created = (
