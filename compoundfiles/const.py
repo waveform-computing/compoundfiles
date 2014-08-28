@@ -81,7 +81,7 @@ COMPOUND_HEADER = st.Struct(native_str(''.join((
 DIR_HEADER = st.Struct(native_str(''.join((
     native_str('<'),    # little-endian format
     native_str('64s'),  # NULL-terminated filename in UTF-16 little-endian encoding
-    native_str('H'),    # length of filename (why?!)
+    native_str('H'),    # length of filename in bytes (why?!)
     native_str('B'),    # dir-entry type
     native_str('B'),    # red (0) or black (1) entry
     native_str('L'),    # ID of left-sibling node

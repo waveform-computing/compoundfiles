@@ -37,7 +37,10 @@ import warnings
 from array import array
 from abc import abstractmethod
 
-from compoundfiles.errors import CompoundFileError, CompoundFileWarning
+from compoundfiles.errors import (
+    CompoundFileNormalLoopError,
+    CompoundFileDirSizeWarning,
+    )
 from compoundfiles.const import END_OF_CHAIN
 
 
@@ -71,7 +74,7 @@ class CompoundFileStream(io.RawIOBase):
                 if hare != END_OF_CHAIN:
                     hare = fat[hare]
                     if hare == tortoise:
-                        raise CompoundFileError(
+                        raise CompoundFileNormalLoopError(
                                 'cyclic FAT chain found starting at %d' % start)
 
     @abstractmethod
@@ -180,7 +183,7 @@ class CompoundFileNormalStream(CompoundFileStream):
             self._length = max_length
         elif not (min_length <= length <= max_length):
             warnings.warn(
-                CompoundFileWarning(
+                CompoundFileDirSizeWarning(
                     'length (%d) of stream at sector %d exceeds bounds '
                     '(%d-%d)' % (length, start, min_length, max_length)))
             self._length = max_length
@@ -223,7 +226,7 @@ class CompoundFileMiniStream(CompoundFileStream):
         max_length = len(self._sectors) * self._sector_size
         if length is not None and length > max_length:
             warnings.warn(
-                CompoundFileWarning(
+                CompoundFileDirSizeWarning(
                     'length (%d) of stream at sector %d exceeds max' % (
                         length, start, max_length)))
         self._length = min(max_length, length or max_length)

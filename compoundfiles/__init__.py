@@ -82,6 +82,7 @@ from compoundfiles.errors import (
     CompoundFileLargeNormalFatError,
     CompoundFileLargeMiniFatError,
     CompoundFileMasterLoopError,
+    CompoundFileNormalLoopError,
     CompoundFileWarning,
     CompoundFileHeaderWarning,
     CompoundFileMasterFatWarning,
@@ -90,6 +91,13 @@ from compoundfiles.errors import (
     CompoundFileSectorSizeWarning,
     CompoundFileMasterSectorWarning,
     CompoundFileNormalSectorWarning,
+    CompoundFileDirEntryWarning,
+    CompoundFileDirNameWarning,
+    CompoundFileDirTypeWarning,
+    CompoundFileDirIndexWarning,
+    CompoundFileDirTimeWarning,
+    CompoundFileDirSectorWarning,
+    CompoundFileDirSizeWarning,
     )
 from compoundfiles.streams import CompoundFileStream
 from compoundfiles.entities import CompoundFileEntity

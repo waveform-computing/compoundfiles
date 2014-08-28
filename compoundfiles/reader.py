@@ -48,7 +48,6 @@ from .errors import (
     CompoundFileLargeNormalFatError,
     CompoundFileLargeMiniFatError,
     CompoundFileMasterLoopError,
-    CompoundFileWarning,
     CompoundFileMasterFatWarning,
     CompoundFileNormalFatWarning,
     CompoundFileMiniFatWarning,

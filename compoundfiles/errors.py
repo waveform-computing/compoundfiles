@@ -76,6 +76,11 @@ class CompoundFileLargeNormalFatError(CompoundFileNormalFatError):
     Error raised when the document has an excessively large FAT.
     """
 
+class CompoundFileNormalLoopError(CompoundFileNormalFatError):
+    """
+    Error raised when a cycle is detected in a FAT chain.
+    """
+
 class CompoundFileLargeMiniFatError(CompoundFileMiniFatError):
     """
     Error raised when the document has an excessively large mini FAT.
@@ -112,6 +117,11 @@ class CompoundFileMiniFatWarning(CompoundFileWarning):
     Base class for warnings about mini FAT issues.
     """
 
+class CompoundFileDirEntryWarning(CompoundFileWarning):
+    """
+    Base class for warnings about directory entry issues.
+    """
+
 class CompoundFileSectorSizeWarning(CompoundFileHeaderWarning):
     """
     Base class for warnings about strange sector sizes in compound documents.
@@ -126,3 +136,34 @@ class CompoundFileNormalSectorWarning(CompoundFileNormalFatWarning):
     """
     Class for warnings about mis-marked normal FAT sectors.
     """
+
+class CompoundFileDirNameWarning(CompoundFileDirEntryWarning):
+    """
+    Class for warnings about invalid directory entry names.
+    """
+
+class CompoundFileDirTypeWarning(CompoundFileDirEntryWarning):
+    """
+    Class for warnings about invalid directory entry types.
+    """
+
+class CompoundFileDirIndexWarning(CompoundFileDirEntryWarning):
+    """
+    Class for warnings about directory sibling or child indexes.
+    """
+
+class CompoundFileDirTimeWarning(CompoundFileDirEntryWarning):
+    """
+    Class for warnings about directory entry timestamps.
+    """
+
+class CompoundFileDirSectorWarning(CompoundFileDirEntryWarning):
+    """
+    Class for warnings about directory start sectors.
+    """
+
+class CompoundFileDirSizeWarning(CompoundFileDirEntryWarning):
+    """
+    Class for warnings about directory size entries.
+    """
+
