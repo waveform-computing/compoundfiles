@@ -180,9 +180,9 @@ class CompoundFileNormalStream(CompoundFileStream):
             self._length = max_length
         elif not (min_length <= length <= max_length):
             warnings.warn(
+                CompoundFileWarning(
                     'length (%d) of stream at sector %d exceeds bounds '
-                    '(%d-%d)' % (length, start, min_length, max_length),
-                    CompoundFileWarning)
+                    '(%d-%d)' % (length, start, min_length, max_length)))
             self._length = max_length
         else:
             self._length = length
@@ -223,9 +223,9 @@ class CompoundFileMiniStream(CompoundFileStream):
         max_length = len(self._sectors) * self._sector_size
         if length is not None and length > max_length:
             warnings.warn(
+                CompoundFileWarning(
                     'length (%d) of stream at sector %d exceeds max' % (
-                        length, start, max_length),
-                    CompoundFileWarning)
+                        length, start, max_length)))
         self._length = min(max_length, length or max_length)
         self._set_pos(0)
 

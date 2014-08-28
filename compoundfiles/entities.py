@@ -188,8 +188,8 @@ class CompoundFileEntity(object):
     def _check(self, valid, message):
         if not valid:
             warnings.warn(
-                    '%s in dir entry %d' % (message, self._index),
-                    CompoundFileWarning)
+                CompoundFileWarning(
+                    '%s in dir entry %d' % (message, self._index)))
 
     def _build_tree(self, entries):
 
