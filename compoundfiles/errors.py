@@ -56,6 +56,11 @@ class CompoundFileMiniFatError(CompoundFileError):
     Base class for exceptions caused by issues in the mini FAT.
     """
 
+class CompoundFileDirEntryError(CompoundFileError):
+    """
+    Base class for errors caused by issues in directory entries.
+    """
+
 class CompoundFileInvalidMagicError(CompoundFileHeaderError):
     """
     Error raised when a compound document has an invalid magic number.
@@ -89,6 +94,11 @@ class CompoundFileLargeMiniFatError(CompoundFileMiniFatError):
 class CompoundFileMasterLoopError(CompoundFileMasterFatError):
     """
     Error raised when a loop is detected in the master FAT.
+    """
+
+class CompoundFileDirLoopError(CompoundFileDirEntryError):
+    """
+    Error raised when a loop is detected in the directory hierarchy.
     """
 
 

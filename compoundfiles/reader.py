@@ -536,6 +536,9 @@ class CompoundFileReader(object):
                 for index in range(stream._length // DIR_HEADER.size)
                 ]
         self.root = entries[0]
+        # Blank out the root entry; necessary to ensure cycle detection works
+        # properly in the _build_tree method
+        entries[0] = None
         self.root._build_tree(entries)
 
     def __len__(self):

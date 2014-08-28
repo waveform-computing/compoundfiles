@@ -36,6 +36,7 @@ import datetime as dt
 from pprint import pformat
 
 from compoundfiles.errors import (
+    CompoundFileDirLoopError,
     CompoundFileDirEntryWarning,
     CompoundFileDirNameWarning,
     CompoundFileDirTypeWarning,
@@ -230,27 +231,36 @@ class CompoundFileEntity(object):
 
     def _build_tree(self, entries):
 
-        # XXX Need cycle detection in here - add a visited flag?
-        def walk(node):
+        def walk(index):
+            node = entries[index]
+            entries[index] = None
+            if node is None:
+                raise CompoundFileDirLoopError(
+                    'loop detected in directory hierarchy '
+                    '(points to index %d)' % index)
             if node._left_index != NO_STREAM:
                 try:
-                    walk(entries[node._left_index])
+                    walk(node._left_index)
                 except IndexError:
                     warnings.warn(
-                        CompoundFileDirIndexWarning('invalid left index'))
+                        CompoundFileDirIndexWarning(
+                            'invalid left index (%d) in entry at '
+                            'index %d' % (node._left_index, index)))
             self._children.append(node)
             if node._right_index != NO_STREAM:
                 try:
-                    walk(entries[node._right_index])
+                    walk(node._right_index)
                 except IndexError:
                     warnings.warn(
-                        CompoundFileDirIndexWarning('invalid right index'))
+                        CompoundFileDirIndexWarning(
+                            'invalid right index (%d) in entry at '
+                            'index %d' % (node._right_index, index)))
             node._build_tree(entries)
 
         if self.isdir:
             self._children = []
             try:
-                walk(entries[self._child_index])
+                walk(self._child_index)
             except IndexError:
                 if self._child_index != NO_STREAM:
                     warnings.warn(
