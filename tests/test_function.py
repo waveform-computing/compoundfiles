@@ -31,6 +31,7 @@ from __future__ import (
 str = type('')
 
 
+import io
 import compoundfiles as cf
 import pytest
 import warnings
@@ -66,7 +67,7 @@ def verify_example(doc, contents=None):
             DirEntry('Storage 1', False, 1),
             DirEntry('Storage 1/Stream 1', True, 544),
             )
-        verify_contents(doc, contents)
+    verify_contents(doc, contents)
 
 
 def test_function_sample1_doc():
@@ -214,19 +215,70 @@ def test_invalid_dir_misc():
 
 def test_invalid_dir_size():
     with warnings.catch_warnings(record=True) as w:
-        # Same file as example.dat with size of Stream 1 corrupted; library
-        # re-writes size to be within 32-bits
-        doc = cf.CompoundFileReader('tests/invalid_dir_size.dat')
+        # Same file as example.dat with size of Stream 1 corrupted (> 32-bits);
+        # library re-writes size to be within 32-bits
+        doc = cf.CompoundFileReader('tests/invalid_dir_size1.dat')
         assert issubclass(w[0].category, cf.CompoundFileDirSizeWarning)
         assert issubclass(w[1].category, cf.CompoundFileDirSizeWarning)
         assert len(w) == 2
         verify_example(doc, (
             DirEntry('Storage 1', False, 1),
-            DirEntry('Storage 1/Stream 1', False, 0xFFFFFFFF),
+            DirEntry('Storage 1/Stream 1', True, 0xFFFFFFFF),
             ))
 
 def test_invalid_dir_loop():
     with pytest.raises(cf.CompoundFileDirLoopError):
+        # Same as example.dat but with Stream 1's left pointer corrupted to
+        # point to the Root Entry
         doc = cf.CompoundFileReader('tests/invalid_dir_loop.dat')
 
+def test_invalid_fat_loop():
+    with pytest.raises(cf.CompoundFileNormalLoopError):
+        # Sample as example.dat but with Stream 1's FAT entry corrupted to
+        # point to itself
+        doc = cf.CompoundFileReader('tests/invalid_fat_loop.dat')
 
+def test_stream_attr():
+    with cf.CompoundFileReader('tests/example.dat') as doc:
+        with doc.open('Storage 1/Stream 1') as f:
+            assert f.readable()
+            assert not f.writable()
+            assert f.seekable()
+
+def test_stream_seek():
+    with cf.CompoundFileReader('tests/example.dat') as doc:
+        with doc.open('Storage 1/Stream 1') as f:
+            assert f.seek(0, io.SEEK_END) == 544
+            assert f.seek(0, io.SEEK_CUR) == 544
+            with pytest.raises(ValueError):
+                f.seek(-1)
+
+def test_stream_read():
+    with cf.CompoundFileReader('tests/example2.dat') as doc:
+        # Same file as example.dat with an additional Stream 2 which is 4112
+        # bytes long (too long for mini FAT)
+        with doc.open('Storage 1/Stream 1') as f:
+            assert len(f.read()) == 544
+            f.seek(0)
+            assert len(f.read(1024)) == 544
+            f.seek(0)
+            assert len(f.read1()) == 64
+            f.seek(0, io.SEEK_END)
+            assert f.read1() == b''
+        with doc.open('Storage 1/Stream 2') as f:
+            assert len(f.read()) == 4112
+            f.seek(0)
+            assert len(f.read1()) == 512
+            f.seek(0, io.SEEK_END)
+            assert f.read1() == b''
+
+def test_stream_read_broken_size():
+    with cf.CompoundFileReader('tests/invalid_dir_size2.dat') as doc:
+        # Same file as example.dat with size of Stream 1 corrupted to 3072
+        # bytes (small enough to fit in the mini FAT but too large for the
+        # actual data which is 544 bytes), and additional Stream 2 which has
+        # corrupted size 8192 bytes (actual size 512 bytes)
+        with doc.open('Storage 1/Stream 1') as f:
+            assert f.seek(0, io.SEEK_END) == 576
+        with doc.open('Storage 1/Stream 2') as f:
+            assert f.seek(0, io.SEEK_END) == 512

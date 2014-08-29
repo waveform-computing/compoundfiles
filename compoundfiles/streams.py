@@ -163,8 +163,7 @@ class CompoundFileStream(io.RawIOBase):
         i = 0
         while i < n:
             buf = self.read1(n - i)
-            if not buf:
-                break
+            assert buf
             result[i:i + len(buf)] = buf
             i += len(buf)
         return bytes(result)
@@ -227,8 +226,8 @@ class CompoundFileMiniStream(CompoundFileStream):
         if length is not None and length > max_length:
             warnings.warn(
                 CompoundFileDirSizeWarning(
-                    'length (%d) of stream at sector %d exceeds max' % (
-                        length, start, max_length)))
+                    'length (%d) of stream at sector %d exceeds '
+                    'max (%d)' % (length, start, max_length)))
         self._length = min(max_length, length or max_length)
         self._set_pos(0)
 
