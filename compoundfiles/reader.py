@@ -56,6 +56,7 @@ from .errors import (
     CompoundFileMasterSectorWarning,
     CompoundFileNormalSectorWarning,
     )
+from .mmap import FakeMemoryMap
 from .entities import CompoundFileEntity
 from .streams import (
     CompoundFileNormalStream,
@@ -170,25 +171,28 @@ class CompoundFileReader(object):
         if isinstance(filename_or_obj, (str, bytes)):
             self._opened = True
             self._file = io.open(filename_or_obj, 'rb')
+            self._mmap = mmap.mmap(self._file.fileno(), 0, access=mmap.ACCESS_READ)
         else:
+            self._opened = False
+            self._file = filename_or_obj
             try:
-                filename_or_obj.fileno()
+                fd = filename_or_obj.fileno()
             except (IOError, AttributeError):
-                # It's a file-like object without a valid file descriptor; copy
-                # its content to a spooled temp file and use that for mmap
+                # It's a file-like object without a valid file descriptor; use
+                # our fake mmap class (if it supports seek and tell)
                 try:
-                    filename_or_obj.seek(0)
+                    self._file.seek(0)
+                    self._file.tell()
                 except (IOError, AttributeError):
-                    raise IOError('filename_or_obj must support seek() or fileno()')
-                self._opened = True
-                self._file = tempfile.SpooledTemporaryFile()
-                shutil.copyfileobj(filename_or_obj, self._file)
+                    raise IOError(
+                        'filename_or_obj must support fileno(), '
+                        'or seek() and tell()')
+                else:
+                    self._mmap = FakeMemoryMap(filename_or_obj)
             else:
                 # It's a file-like object with a valid file descriptor; just
                 # reference the object and mmap it
-                self._opened = False
-                self._file = filename_or_obj
-        self._mmap = mmap.mmap(self._file.fileno(), 0, access=mmap.ACCESS_READ)
+                self._mmap = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
 
         self._master_fat = None
         self._normal_fat = None
