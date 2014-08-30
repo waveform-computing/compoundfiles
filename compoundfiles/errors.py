@@ -71,11 +71,6 @@ class CompoundFileInvalidBomError(CompoundFileHeaderError):
     Error raised when a compound document is anything other than little-endian.
     """
 
-class CompoundFileVersionError(CompoundFileHeaderError):
-    """
-    Error raised when the library version of a compound document isn't recognized.
-    """
-
 class CompoundFileLargeNormalFatError(CompoundFileNormalFatError):
     """
     Error raised when the document has an excessively large FAT.
@@ -99,6 +94,16 @@ class CompoundFileMasterLoopError(CompoundFileMasterFatError):
 class CompoundFileDirLoopError(CompoundFileDirEntryError):
     """
     Error raised when a loop is detected in the directory hierarchy.
+    """
+
+class CompoundFileNotFoundError(CompoundFileError):
+    """
+    Error raised when a named stream/storage isn't found.
+    """
+
+class CompoundFileNotStreamError(CompoundFileError):
+    """
+    Error raised when an attempt is made to open a storage.
     """
 
 
@@ -137,43 +142,53 @@ class CompoundFileSectorSizeWarning(CompoundFileHeaderWarning):
     Base class for warnings about strange sector sizes in compound documents.
     """
 
+class CompoundFileVersionWarning(CompoundFileHeaderWarning):
+    """
+    Warnings about unknown library versions.
+    """
+
 class CompoundFileMasterSectorWarning(CompoundFileNormalFatWarning):
     """
-    Class for warnings about mis-marked master FAT sectors.
+    Warnings about mis-marked master FAT sectors.
     """
 
 class CompoundFileNormalSectorWarning(CompoundFileNormalFatWarning):
     """
-    Class for warnings about mis-marked normal FAT sectors.
+    Warnings about mis-marked normal FAT sectors.
     """
 
 class CompoundFileDirNameWarning(CompoundFileDirEntryWarning):
     """
-    Class for warnings about invalid directory entry names.
+    Warnings about invalid directory entry names.
     """
 
 class CompoundFileDirTypeWarning(CompoundFileDirEntryWarning):
     """
-    Class for warnings about invalid directory entry types.
+    Warnings about invalid directory entry types.
     """
 
 class CompoundFileDirIndexWarning(CompoundFileDirEntryWarning):
     """
-    Class for warnings about directory sibling or child indexes.
+    Warnings about directory sibling or child indexes.
     """
 
 class CompoundFileDirTimeWarning(CompoundFileDirEntryWarning):
     """
-    Class for warnings about directory entry timestamps.
+    Warnings about directory entry timestamps.
     """
 
 class CompoundFileDirSectorWarning(CompoundFileDirEntryWarning):
     """
-    Class for warnings about directory start sectors.
+    Warnings about directory start sectors.
     """
 
 class CompoundFileDirSizeWarning(CompoundFileDirEntryWarning):
     """
-    Class for warnings about directory size entries.
+    Warnings about directory size entries.
+    """
+
+class CompoundFileTruncatedWarning(CompoundFileWarning):
+    """
+    Warning about a truncated compound file.
     """
 

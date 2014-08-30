@@ -44,14 +44,16 @@ from .errors import (
     CompoundFileError,
     CompoundFileInvalidMagicError,
     CompoundFileInvalidBomError,
-    CompoundFileVersionError,
     CompoundFileLargeNormalFatError,
     CompoundFileLargeMiniFatError,
     CompoundFileMasterLoopError,
+    CompoundFileNotFoundError,
+    CompoundFileNotStreamError,
     CompoundFileMasterFatWarning,
     CompoundFileNormalFatWarning,
     CompoundFileMiniFatWarning,
     CompoundFileHeaderWarning,
+    CompoundFileVersionWarning,
     CompoundFileSectorSizeWarning,
     CompoundFileMasterSectorWarning,
     CompoundFileNormalSectorWarning,
@@ -223,10 +225,13 @@ class CompoundFileReader(object):
             raise CompoundFileInvalidMagicError(
                     '%s does not appear to be an OLE compound '
                     'document' % filename_or_obj)
-        if bom != 0xFFFE:
+        if bom == 0xFEFF:
             raise CompoundFileInvalidBomError(
                     '%s uses an unsupported byte ordering (big '
                     'endian)' % filename_or_obj)
+        elif bom != 0xFFFE:
+            raise CompoundFileInvalidBomError(
+                    'unable to determine byte ordering of %s' % filename_or_obj)
         self._normal_sector_size = 1 << normal_sector_size
         self._mini_sector_size = 1 << mini_sector_size
         if not (128 <= self._normal_sector_size <= 1048576):
@@ -267,8 +272,9 @@ class CompoundFileReader(object):
                         'unexpected sector size in v4 file '
                         '(%d)' % self._normal_sector_size))
         else:
-            raise CompoundFileVersionError(
-                    'unsupported DLL version (%d)' % self._dll_version)
+            warnings.warn(
+                CompoundFileVersionWarning(
+                    'unrecognized DLL version (%d)' % self._dll_version))
         if self._mini_sector_size != 64:
             warnings.warn(
                 CompoundFileSectorSizeWarning(
@@ -311,12 +317,12 @@ class CompoundFileReader(object):
                     try:
                         entity = entity[name]
                     except KeyError:
-                        raise CompoundFileError(
+                        raise CompoundFileNotFoundError(
                                 'unable to locate %s in compound '
                                 'file' % filename_or_entity)
             filename_or_entity = entity
         if not filename_or_entity.isfile:
-            raise CompoundFileError(
+            raise CompoundFileNotStreamError(
                     '%s is not a stream' % filename_or_entity.name)
         cls = (
                 CompoundFileMiniStream

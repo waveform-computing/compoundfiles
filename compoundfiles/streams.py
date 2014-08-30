@@ -40,6 +40,7 @@ from abc import abstractmethod
 from compoundfiles.errors import (
     CompoundFileNormalLoopError,
     CompoundFileDirSizeWarning,
+    CompoundFileTruncatedWarning,
     )
 from compoundfiles.const import END_OF_CHAIN
 
@@ -163,7 +164,11 @@ class CompoundFileStream(io.RawIOBase):
         i = 0
         while i < n:
             buf = self.read1(n - i)
-            assert buf
+            if not buf:
+                warnings.warn(
+                    CompoundFileTruncatedWarning(
+                        'compound document appears to be truncated'))
+                break
             result[i:i + len(buf)] = buf
             i += len(buf)
         return bytes(result)
