@@ -69,50 +69,73 @@ def verify_example(doc, contents=None):
             )
     verify_contents(doc, contents)
 
+@pytest.fixture(params=(
+    ('tests/sample1.doc', (
+        DirEntry('1Table', True, 8375),
+        DirEntry('\x01CompObj', True, 106),
+        DirEntry('ObjectPool', False, 0),
+        DirEntry('WordDocument', True, 9280),
+        DirEntry('\x05SummaryInformation', True, 4096),
+        DirEntry('\x05DocumentSummaryInformation', True, 4096),
+        )),
+    ('tests/sample1.xls', (
+        DirEntry('Workbook', True, 11073),
+        DirEntry('\x05SummaryInformation', True, 4096),
+        DirEntry('\x05DocumentSummaryInformation', True, 4096),
+        )),
+    ('tests/sample2.doc', (
+        DirEntry('Data', True, 8420),
+        DirEntry('1Table', True, 19168),
+        DirEntry('\x01CompObj', True, 113),
+        DirEntry('WordDocument', True, 25657),
+        DirEntry('\x05SummaryInformation', True, 4096),
+        DirEntry('\x05DocumentSummaryInformation', True, 4096),
+        )),
+    ('tests/sample2.xls', (
+        DirEntry('\x01Ole', True, 20),
+        DirEntry('\x01CompObj', True, 73),
+        DirEntry('Workbook', True, 1695),
+        DirEntry('\x05SummaryInformation', True, 228),
+        DirEntry('\x05DocumentSummaryInformation', True, 116),
+        )),
+    ('tests/example.dat', (
+        DirEntry('Storage 1', False, 1),
+        DirEntry('Storage 1/Stream 1', True, 544),
+        )),
+    ))
+def sample(request):
+    return request.param
 
-def test_function_sample1_doc():
-    with cf.CompoundFileReader('tests/sample1.doc') as doc:
-        contents = (
-            DirEntry('1Table', True, 8375),
-            DirEntry('\x01CompObj', True, 106),
-            DirEntry('ObjectPool', False, 0),
-            DirEntry('WordDocument', True, 9280),
-            DirEntry('\x05SummaryInformation', True, 4096),
-            DirEntry('\x05DocumentSummaryInformation', True, 4096),
-            )
+
+def test_sample_from_filename(sample):
+    filename, contents = sample
+    with cf.CompoundFileReader(filename) as doc:
         verify_contents(doc, contents)
 
-def test_function_sample1_xls():
-    with cf.CompoundFileReader('tests/sample1.xls') as doc:
-        contents = (
-            DirEntry('Workbook', True, 11073),
-            DirEntry('\x05SummaryInformation', True, 4096),
-            DirEntry('\x05DocumentSummaryInformation', True, 4096),
-            )
+def test_sample_from_file(sample):
+    filename, contents = sample
+    f = io.open(filename, 'rb')
+    with cf.CompoundFileReader(f) as doc:
         verify_contents(doc, contents)
 
-def test_function_sample2_doc():
-    with cf.CompoundFileReader('tests/sample2.doc') as doc:
-        contents = (
-            DirEntry('Data', True, 8420),
-            DirEntry('1Table', True, 19168),
-            DirEntry('\x01CompObj', True, 113),
-            DirEntry('WordDocument', True, 25657),
-            DirEntry('\x05SummaryInformation', True, 4096),
-            DirEntry('\x05DocumentSummaryInformation', True, 4096),
-            )
+def test_sample_from_fake_mmap(sample):
+    filename, contents = sample
+    stream = io.BytesIO()
+    with io.open(filename, 'rb') as source:
+        stream.write(source.read())
+    with cf.CompoundFileReader(stream) as doc:
         verify_contents(doc, contents)
 
-def test_function_sample2_xls():
-    with cf.CompoundFileReader('tests/sample2.xls') as doc:
-        contents = (
-            DirEntry('\x01Ole', True, 20),
-            DirEntry('\x01CompObj', True, 73),
-            DirEntry('Workbook', True, 1695),
-            DirEntry('\x05SummaryInformation', True, 228),
-            DirEntry('\x05DocumentSummaryInformation', True, 116),
-            )
-        verify_contents(doc, contents)
+def test_reader_invalid_source():
+    with pytest.raises(IOError):
+        cf.CompoundFileReader(object())
+
+def test_reader_bad_sector():
+    with cf.CompoundFileReader('tests/example.dat') as doc:
+        with pytest.raises(cf.CompoundFileError):
+            # Can't do this with a corrupted file (or at least I haven't
+            # figured out how yet!); too many safeguards!
+            doc._read_sector(6)
 
 def test_entries_iter():
     with cf.CompoundFileReader('tests/example.dat') as doc:
@@ -126,105 +149,112 @@ def test_entries_bytes():
     with cf.CompoundFileReader('tests/example.dat') as doc:
         assert b'Storage 1' in doc.root
         assert doc.root['Storage 1'] is doc.root[b'Storage 1']
+        assert doc.open('Storage 1/Stream 1').read() == doc.open(b'Storage 1/Stream 1').read()
 
 def test_entries_not_contains():
     with cf.CompoundFileReader('tests/example.dat') as doc:
         assert 'Storage 2' not in doc.root
         assert doc.root['Storage 1']['Stream 1'] not in doc.root
 
-def test_spec_example():
+def test_entry_not_found():
     with cf.CompoundFileReader('tests/example.dat') as doc:
-        verify_example(doc)
+        with pytest.raises(cf.CompoundFileNotFoundError):
+            doc.open('Storage 1/Stream 2')
+
+def test_entry_not_stream():
+    with cf.CompoundFileReader('tests/example.dat') as doc:
+        with pytest.raises(cf.CompoundFileNotStreamError):
+            doc.open('Storage 1')
 
 def test_invalid_name():
     # Same file as example.dat with corrupted names (no NULL terminator in
     # name1, incorrect length in name2); library continues as normal in these
     # cases
     with warnings.catch_warnings(record=True) as w:
-        doc = cf.CompoundFileReader('tests/invalid_name1.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirNameWarning)
-        assert len(w) == 1
-        verify_example(doc)
+        with cf.CompoundFileReader('tests/invalid_name1.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirNameWarning)
+            assert len(w) == 1
+            verify_example(doc)
     with warnings.catch_warnings(record=True) as w:
-        doc = cf.CompoundFileReader('tests/invalid_name2.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirNameWarning)
-        assert len(w) == 1
-        verify_example(doc)
+        with cf.CompoundFileReader('tests/invalid_name2.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirNameWarning)
+            assert len(w) == 1
+            verify_example(doc)
 
 def test_invalid_root_type():
     with warnings.catch_warnings(record=True) as w:
         # Same file as example.dat with root dir-entry type corrupted; in this
         # case the library corrects the dir-entry type and continues
-        doc = cf.CompoundFileReader('tests/invalid_root_type.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirTypeWarning)
-        assert len(w) == 1
-        verify_example(doc)
+        with cf.CompoundFileReader('tests/invalid_root_type.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirTypeWarning)
+            assert len(w) == 1
+            verify_example(doc)
 
 def test_invalid_stream_type():
     with warnings.catch_warnings(record=True) as w:
         # Same file as example.dat with Stream 1 dir-entry type corrupted; in
         # this case the library ignores the Stream 1 entry
-        doc = cf.CompoundFileReader('tests/invalid_stream_type.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirTypeWarning)
-        assert issubclass(w[1].category, cf.CompoundFileDirNameWarning)
-        assert issubclass(w[2].category, cf.CompoundFileDirNameWarning)
-        assert issubclass(w[3].category, cf.CompoundFileDirEntryWarning)
-        assert issubclass(w[4].category, cf.CompoundFileDirSizeWarning)
-        assert issubclass(w[5].category, cf.CompoundFileDirSizeWarning)
-        assert len(w) == 6
-        verify_example(doc, (
-            DirEntry('Storage 1', False, 1),
-            ))
+        with cf.CompoundFileReader('tests/invalid_stream_type.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirTypeWarning)
+            assert issubclass(w[1].category, cf.CompoundFileDirNameWarning)
+            assert issubclass(w[2].category, cf.CompoundFileDirNameWarning)
+            assert issubclass(w[3].category, cf.CompoundFileDirEntryWarning)
+            assert issubclass(w[4].category, cf.CompoundFileDirSizeWarning)
+            assert issubclass(w[5].category, cf.CompoundFileDirSizeWarning)
+            assert len(w) == 6
+            verify_example(doc, (
+                DirEntry('Storage 1', False, 1),
+                ))
 
 def test_invalid_dir_indexes():
     with warnings.catch_warnings(record=True) as w:
         # Same file as example.dat with the root siblings corrupted, and
         # Stream 1 child corrupted; library continues as normal
-        doc = cf.CompoundFileReader('tests/invalid_dir_indexes1.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirIndexWarning)
-        assert issubclass(w[1].category, cf.CompoundFileDirIndexWarning)
-        assert issubclass(w[2].category, cf.CompoundFileDirIndexWarning)
-        assert len(w) == 3
-        verify_example(doc)
+        with cf.CompoundFileReader('tests/invalid_dir_indexes1.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirIndexWarning)
+            assert issubclass(w[1].category, cf.CompoundFileDirIndexWarning)
+            assert issubclass(w[2].category, cf.CompoundFileDirIndexWarning)
+            assert len(w) == 3
+            verify_example(doc)
     with warnings.catch_warnings(record=True) as w:
         # Same file as example.dat with the Stream 1 siblings corrupted;
         # library continues as normal
-        doc = cf.CompoundFileReader('tests/invalid_dir_indexes2.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirIndexWarning)
-        assert issubclass(w[1].category, cf.CompoundFileDirIndexWarning)
-        assert len(w) == 2
-        verify_example(doc)
+        with cf.CompoundFileReader('tests/invalid_dir_indexes2.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirIndexWarning)
+            assert issubclass(w[1].category, cf.CompoundFileDirIndexWarning)
+            assert len(w) == 2
+            verify_example(doc)
     with warnings.catch_warnings(record=True) as w:
         # Same file as example.dat with the root child index corrupted; library
         # continues but file is effectively empty
-        doc = cf.CompoundFileReader('tests/invalid_dir_indexes3.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirIndexWarning)
-        assert len(w) == 1
-        verify_example(doc, ())
+        with cf.CompoundFileReader('tests/invalid_dir_indexes3.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirIndexWarning)
+            assert len(w) == 1
+            verify_example(doc, ())
 
 def test_invalid_dir_misc():
     with warnings.catch_warnings(record=True) as w:
         # Same file as example.dat with UUID and timestamps corrupted in
         # Stream 1; library continues as normal
-        doc = cf.CompoundFileReader('tests/invalid_dir_misc.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirEntryWarning)
-        assert issubclass(w[1].category, cf.CompoundFileDirTimeWarning)
-        assert issubclass(w[2].category, cf.CompoundFileDirTimeWarning)
-        assert len(w) == 3
-        verify_example(doc)
+        with cf.CompoundFileReader('tests/invalid_dir_misc.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirEntryWarning)
+            assert issubclass(w[1].category, cf.CompoundFileDirTimeWarning)
+            assert issubclass(w[2].category, cf.CompoundFileDirTimeWarning)
+            assert len(w) == 3
+            verify_example(doc)
 
 def test_invalid_dir_size():
     with warnings.catch_warnings(record=True) as w:
         # Same file as example.dat with size of Stream 1 corrupted (> 32-bits);
         # library re-writes size to be within 32-bits
-        doc = cf.CompoundFileReader('tests/invalid_dir_size1.dat')
-        assert issubclass(w[0].category, cf.CompoundFileDirSizeWarning)
-        assert issubclass(w[1].category, cf.CompoundFileDirSizeWarning)
-        assert len(w) == 2
-        verify_example(doc, (
-            DirEntry('Storage 1', False, 1),
-            DirEntry('Storage 1/Stream 1', True, 0xFFFFFFFF),
-            ))
+        with cf.CompoundFileReader('tests/invalid_dir_size1.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileDirSizeWarning)
+            assert issubclass(w[1].category, cf.CompoundFileDirSizeWarning)
+            assert len(w) == 2
+            verify_example(doc, (
+                DirEntry('Storage 1', False, 1),
+                DirEntry('Storage 1/Stream 1', True, 0xFFFFFFFF),
+                ))
 
 def test_invalid_dir_loop():
     with pytest.raises(cf.CompoundFileDirLoopError):
@@ -234,9 +264,117 @@ def test_invalid_dir_loop():
 
 def test_invalid_fat_loop():
     with pytest.raises(cf.CompoundFileNormalLoopError):
-        # Sample as example.dat but with Stream 1's FAT entry corrupted to
+        # Same as example.dat but with Stream 1's FAT entry corrupted to
         # point to itself
         doc = cf.CompoundFileReader('tests/invalid_fat_loop.dat')
+
+def test_invalid_magic():
+    with pytest.raises(cf.CompoundFileInvalidMagicError):
+        # Same as example.dat with corrupted magic block at the start
+        cf.CompoundFileReader('tests/invalid_magic.dat')
+
+def test_invalid_bom():
+    with pytest.raises(cf.CompoundFileInvalidBomError):
+        # Same as example.dat with big endian BOM
+        cf.CompoundFileReader('tests/invalid_big_endian_bom.dat')
+    with pytest.raises(cf.CompoundFileInvalidBomError):
+        # Same as example.dat with invalid BOM
+        cf.CompoundFileReader('tests/invalid_bom.dat')
+
+def test_invalid_sector_size():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with sector size shifts corrupted (sector size
+        # 4 bytes, mini sector size 2 bytes); reader assumes 512 and 64 bytes
+        # respectively as sector sizes <128 bytes are impossible, and <512
+        # bytes are highly unlikely
+        with cf.CompoundFileReader('tests/invalid_sector_size.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileSectorSizeWarning)
+            assert issubclass(w[1].category, cf.CompoundFileSectorSizeWarning)
+            assert len(w) == 2
+            verify_example(doc)
+
+def test_invalid_dir_sector_count():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with dir sector count filled in (not allowed in
+        # v3 file); reader ignores the value in both v3 and v4 anyway
+        with cf.CompoundFileReader('tests/invalid_dir_sector_count.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileHeaderWarning)
+            assert len(w) == 1
+            verify_example(doc)
+
+def test_invalid_master_ext():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with master FAT extension pointer set to
+        # FREE_SECTOR (should be END_OF_CHAIN for no extension); reader assumes
+        # END_OF_CHAIN
+        with cf.CompoundFileReader('tests/invalid_master_ext_free.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 1
+            verify_example(doc)
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with master FAT extension pointer set to 6
+        # (beyond EOF) and count set to 0
+        with cf.CompoundFileReader('tests/invalid_master_ext_eof.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 1
+            verify_example(doc)
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with master FAT extension counter set to 2,
+        # but extension pointer set to END_OF_CHAIN
+        with cf.CompoundFileReader('tests/invalid_master_ext_count.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert issubclass(w[1].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 2
+            verify_example(doc)
+
+def test_invalid_header_misc():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with uuid, txn, and reserved fields set to
+        # non-zero values; violates spec but reader ignores it after warning
+        with cf.CompoundFileReader('tests/invalid_header_misc.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileHeaderWarning)
+            assert issubclass(w[1].category, cf.CompoundFileHeaderWarning)
+            assert issubclass(w[2].category, cf.CompoundFileHeaderWarning)
+            assert len(w) == 3
+            verify_example(doc)
+
+def test_strange_sector_size_v3():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with sector size re-written to 1024 and file
+        # content padded out accordingly; reader warns out this but carries
+        # on anyway
+        with cf.CompoundFileReader('tests/strange_sector_size_v3.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileSectorSizeWarning)
+            assert len(w) == 1
+            verify_example(doc)
+
+def test_strange_sector_size_v4():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with DLL version set to 4 and dir sector count
+        # filled in (required in v4 files); reader warns about unusual
+        # sector size by carries on anyway
+        with cf.CompoundFileReader('tests/strange_sector_size_v4.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileSectorSizeWarning)
+            assert len(w) == 1
+            verify_example(doc)
+
+def test_strange_dll_version():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with DLL version set to 5; reader warns about
+        # this but ignores it
+        with cf.CompoundFileReader('tests/strange_dll_version.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileVersionWarning)
+            assert len(w) == 1
+            verify_example(doc)
+
+def test_strange_mini_sector_size():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with mini sector size set to 128 and mini FAT
+        # re-written accordingly
+        with cf.CompoundFileReader('tests/strange_mini_sector_size.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileSectorSizeWarning)
+            assert len(w) == 1
+            verify_example(doc)
 
 def test_stream_attr():
     with cf.CompoundFileReader('tests/example.dat') as doc:
@@ -282,3 +420,17 @@ def test_stream_read_broken_size():
             assert f.seek(0, io.SEEK_END) == 576
         with doc.open('Storage 1/Stream 2') as f:
             assert f.seek(0, io.SEEK_END) == 512
+
+def test_stream_truncated():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with mini FAT and directory entries re-written
+        # to extend Stream 1 beyond the end of the compound document
+        with cf.CompoundFileReader('tests/invalid_truncated.dat') as doc:
+            with doc.open('Storage 1/Stream 1') as f:
+                f.read()
+            assert issubclass(w[0].category, cf.CompoundFileTruncatedWarning)
+            assert len(w) == 1
+            verify_example(doc, (
+                DirEntry('Storage 1', False, 1),
+                DirEntry('Storage 1/Stream 1', True, 1500),
+                ))
