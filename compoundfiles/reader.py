@@ -357,7 +357,8 @@ class CompoundFileReader(object):
         # Note: when reading the master-FAT we deliberately disregard the
         # master-FAT sector count read from the header as implementations may
         # set this incorrectly. Instead, we scan for END_OF_CHAIN (or
-        # FREE_SECTOR) in the DIFAT after each read and stop when we find it.  # In order to avoid infinite loops (in the case of a stupid or
+        # FREE_SECTOR) in the DIFAT after each read and stop when we find it.
+        # In order to avoid infinite loops (in the case of a stupid or
         # malicious file) we keep track of each sector we seek to and quit in
         # the event of a repeat
         self._master_fat = array(native_str('L'))
@@ -392,24 +393,21 @@ class CompoundFileReader(object):
             # Check for an END_OF_CHAIN marker in the existing stream
             for index in range(checked, len(self._master_fat)):
                 value = self._master_fat[index]
-                if value == END_OF_CHAIN:
-                    break
-                elif value == FREE_SECTOR:
-                    warnings.warn(
-                        CompoundFileMasterFatWarning(
-                            'DIFAT terminated by FREE_SECTOR'))
+                if value > self._max_sector:
+                    if value in (END_OF_CHAIN, FREE_SECTOR):
+                        pass
+                    elif value > MAX_NORMAL_SECTOR:
+                        warnings.warn(
+                            CompoundFileMasterFatWarning(
+                                'DIFAT terminated by invalid special '
+                                'value (%d)' % value))
+                    else:
+                        warnings.warn(
+                            CompoundFileMasterFatWarning(
+                                'sector in DIFAT chain beyond file '
+                                'end (%d)' % value))
                     value = END_OF_CHAIN
                     break
-                elif self._max_sector < value <= MAX_NORMAL_SECTOR:
-                    warnings.warn(
-                        CompoundFileMasterFatWarning(
-                            'sector in DIFAT chain beyond file end (%d)' % value))
-                    value = END_OF_CHAIN
-                    break
-                elif value > MAX_NORMAL_SECTOR:
-                    warnings.warn(
-                        CompoundFileMasterFatWarning(
-                            'invalid special value in DIFAT chain (%d)' % value))
             if value == END_OF_CHAIN:
                 del self._master_fat[index:]
                 break

@@ -302,6 +302,22 @@ def test_invalid_dir_sector_count():
             assert len(w) == 1
             verify_example(doc)
 
+def test_invalid_master_sectors():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with second master FAT block pointing beyond EOF;
+        # reader ignores it and all further blocks
+        with cf.CompoundFileReader('tests/invalid_master_eof.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 1
+            verify_example(doc)
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with second master FAT block set to
+        # MASTER_FAT_SECTOR; reader ignores it and all further blocks
+        with cf.CompoundFileReader('tests/invalid_master_special.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 1
+            verify_example(doc)
+
 def test_invalid_master_ext():
     with warnings.catch_warnings(record=True) as w:
         # Same as example.dat with master FAT extension pointer set to
@@ -374,6 +390,49 @@ def test_strange_mini_sector_size():
         with cf.CompoundFileReader('tests/strange_mini_sector_size.dat') as doc:
             assert issubclass(w[0].category, cf.CompoundFileSectorSizeWarning)
             assert len(w) == 1
+            verify_example(doc)
+
+def test_strange_master_full():
+    # Same as example.dat with FAT extended to include enough blank sectors to
+    # fill the DIFAT without an extension (e.g. a compound document where lots
+    # of contents have been deleted and the FAT hasn't been compressed but
+    # simply overwritten)
+    with warnings.catch_warnings(record=True) as w:
+        with cf.CompoundFileReader('tests/strange_master_full.dat') as doc:
+            assert len(w) == 0
+            verify_example(doc)
+
+def test_strange_master_ext():
+    # Same as example.dat with FAT extended to include enough blank sectors to
+    # necessitate a DIFAT extension (e.g. a compound document where lots of
+    # contents have been deleted and the FAT hasn't been compressed but simply
+    # overwritten)
+    with warnings.catch_warnings(record=True) as w:
+        with cf.CompoundFileReader('tests/strange_master_ext.dat') as doc:
+            assert len(w) == 0
+            verify_example(doc)
+
+def test_invalid_master_loop():
+    with pytest.raises(cf.CompoundFileMasterLoopError):
+        # Same as strange_master_ext.dat but with DIFAT extension sector filled
+        # and terminated with a self-reference
+        doc = cf.CompoundFileReader('tests/invalid_master_loop.dat')
+
+def test_invalid_master_len():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as strange_master_ext.dat with master extension count set to 2
+        # (should be 1); reader ignores DIFAT count
+        with cf.CompoundFileReader('tests/invalid_master_underrun.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 1
+            verify_example(doc)
+    with warnings.catch_warnings(record=True) as w:
+        # Same as strange_master_ext.dat with master extension count set to 0
+        # (should be 1); reader ignores DIFAT count
+        with cf.CompoundFileReader('tests/invalid_master_overrun.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert issubclass(w[1].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 2
             verify_example(doc)
 
 def test_stream_attr():
