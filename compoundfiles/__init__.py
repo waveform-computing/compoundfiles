@@ -81,6 +81,7 @@ from compoundfiles.errors import (
     CompoundFileInvalidBomError,
     CompoundFileLargeNormalFatError,
     CompoundFileLargeMiniFatError,
+    CompoundFileNoMiniFatError,
     CompoundFileMasterLoopError,
     CompoundFileNormalLoopError,
     CompoundFileDirLoopError,

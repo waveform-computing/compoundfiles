@@ -38,6 +38,7 @@ from array import array
 from abc import abstractmethod
 
 from compoundfiles.errors import (
+    CompoundFileNoMiniFatError,
     CompoundFileNormalLoopError,
     CompoundFileDirSizeWarning,
     CompoundFileTruncatedWarning,
@@ -222,6 +223,9 @@ class CompoundFileNormalStream(CompoundFileStream):
 class CompoundFileMiniStream(CompoundFileStream):
     def __init__(self, parent, start, length=None):
         super(CompoundFileMiniStream, self).__init__()
+        if not parent._mini_fat:
+            raise CompoundFileNoMiniFatError(
+                'no mini FAT in compound document')
         self._load_sectors(start, parent._mini_fat)
         self._sector_size = parent._mini_sector_size
         self._header_size = 0

@@ -86,6 +86,12 @@ class CompoundFileLargeMiniFatError(CompoundFileMiniFatError):
     Error raised when the document has an excessively large mini FAT.
     """
 
+class CompoundFileNoMiniFatError(CompoundFileMiniFatError):
+    """
+    Error raised when the document has no mini-FAT, but an attempt is made
+    to open a file that should belong to the mini-FAT.
+    """
+
 class CompoundFileMasterLoopError(CompoundFileMasterFatError):
     """
     Error raised when a loop is detected in the master FAT.

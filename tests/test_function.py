@@ -71,7 +71,7 @@ def verify_example(doc, contents=None, test_contents=True):
     if test_contents:
         for entry in contents:
             if entry.isfile:
-                assert doc.open(entry.name).read() == ('Data' * ((entry.size + 3) // 4))[:entry.size]
+                assert doc.open(entry.name).read() == (b'Data' * ((entry.size + 3) // 4))[:entry.size]
 
 @pytest.fixture(params=(
     ('tests/sample1.doc', (
