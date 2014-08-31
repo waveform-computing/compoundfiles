@@ -57,7 +57,7 @@ def verify_contents(doc, contents):
         else:
             assert len(entity) == entry.size
 
-def verify_example(doc, contents=None):
+def verify_example(doc, contents=None, test_contents=True):
     # Checks that the specified "doc" matches the specification's example
     # document which contains a single storage containing a single stream. This
     # example (corrupted in various ways) is used numerous times in this test
@@ -68,6 +68,10 @@ def verify_example(doc, contents=None):
             DirEntry('Storage 1/Stream 1', True, 544),
             )
     verify_contents(doc, contents)
+    if test_contents:
+        for entry in contents:
+            if entry.isfile:
+                assert doc.open(entry.name).read() == ('Data' * ((entry.size + 3) // 4))[:entry.size]
 
 @pytest.fixture(params=(
     ('tests/sample1.doc', (
@@ -140,10 +144,13 @@ def test_reader_bad_sector():
 def test_entries_iter():
     with cf.CompoundFileReader('tests/example.dat') as doc:
         assert len([e for e in doc.root]) == 1
+        assert len([e for e in doc]) == 1
+        assert len(doc) == 1
 
 def test_entries_index():
     with cf.CompoundFileReader('tests/example.dat') as doc:
         assert doc.root[0] == doc.root['Storage 1']
+        assert doc[0] == doc.root['Storage 1']
 
 def test_entries_bytes():
     with cf.CompoundFileReader('tests/example.dat') as doc:
@@ -154,6 +161,7 @@ def test_entries_bytes():
 def test_entries_not_contains():
     with cf.CompoundFileReader('tests/example.dat') as doc:
         assert 'Storage 2' not in doc.root
+        assert 'Storage 2' not in doc
         assert doc.root['Storage 1']['Stream 1'] not in doc.root
 
 def test_entry_not_found():
@@ -254,7 +262,7 @@ def test_invalid_dir_size():
             verify_example(doc, (
                 DirEntry('Storage 1', False, 1),
                 DirEntry('Storage 1/Stream 1', True, 0xFFFFFFFF),
-                ))
+                ), test_contents=False)
 
 def test_invalid_dir_loop():
     with pytest.raises(cf.CompoundFileDirLoopError):
@@ -343,6 +351,44 @@ def test_invalid_master_ext():
             assert len(w) == 2
             verify_example(doc)
 
+def test_invalid_fat_len():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with length of FAT in header tweaked to 2 (should
+        # be 1); reader ignores erroneous length
+        with cf.CompoundFileReader('tests/invalid_fat_len.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterFatWarning)
+            assert len(w) == 1
+            verify_example(doc)
+
+def test_invalid_fat_types():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as strange_master_ext.dat with a couple of sectors mis-marked in
+        # the FAT (both marked as FREE_SECTOR when they should be
+        # NORMAL_FAT_SECTOR and MASTER_FAT_SECTOR respectively)
+        with cf.CompoundFileReader('tests/invalid_fat_types.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMasterSectorWarning)
+            assert issubclass(w[1].category, cf.CompoundFileNormalSectorWarning)
+            assert len(w) == 2
+            verify_example(doc)
+
+def test_invalid_mini_fat():
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with the mini-FAT start sector corrupted to be
+        # FREE_SECTOR; reader assumes no mini-FAT in this case
+        with cf.CompoundFileReader('tests/invalid_mini_free.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMiniFatWarning)
+            assert len(w) == 1
+            verify_example(doc, test_contents=False)
+            with pytest.raises(cf.CompoundFileNoMiniFatError):
+                doc.open('Storage 1/Stream 1')
+    with warnings.catch_warnings(record=True) as w:
+        # Same as example.dat with the mini-FAT start sector corrupted to be
+        # beyond EOF; reader assumes no mini-FAT in this case
+        with cf.CompoundFileReader('tests/invalid_mini_eof.dat') as doc:
+            assert issubclass(w[0].category, cf.CompoundFileMiniFatWarning)
+            assert len(w) == 1
+            verify_example(doc, test_contents=False)
+
 def test_invalid_header_misc():
     with warnings.catch_warnings(record=True) as w:
         # Same as example.dat with uuid, txn, and reserved fields set to
@@ -415,7 +461,7 @@ def test_strange_master_ext():
 def test_invalid_master_loop():
     with pytest.raises(cf.CompoundFileMasterLoopError):
         # Same as strange_master_ext.dat but with DIFAT extension sector filled
-        # and terminated with a self-reference
+        # and terminated with a self, test_contents=False-reference
         doc = cf.CompoundFileReader('tests/invalid_master_loop.dat')
 
 def test_invalid_master_len():
@@ -492,4 +538,4 @@ def test_stream_truncated():
             verify_example(doc, (
                 DirEntry('Storage 1', False, 1),
                 DirEntry('Storage 1/Stream 1', True, 1500),
-                ))
+                ), test_contents=False)
