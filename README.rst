@@ -21,6 +21,7 @@ Links
   tracker`_
 * The `documentation`_ (which includes installation instructions and
   quick-start examples) can be read on ReadTheDocs
+* The `build status`_ can be observed on Travis CI
 
 .. _documentation: http://compound-files.readthedocs.org/
 .. _source code: https://github.com/waveform80/compoundfiles
@@ -28,3 +29,5 @@ Links
 .. _OLE Compound Document: http://www.openoffice.org/sc/compdocfileformat.pdf
 .. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
 .. _MIT license: http://opensource.org/licenses/MIT
+.. _build status: https://travis-ci.org/waveform80/compoundfiles
+
