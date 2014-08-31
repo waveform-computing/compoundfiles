@@ -94,6 +94,8 @@ class FakeMemoryMap(object):
                         key.stop
                         )))
                     self._file.seek(start)
+                    if start >= stop:
+                        return b''
                     return self._file.read(stop - start)[::step]
                 elif step < 0:
                     start = min(self._size, max(0, (
@@ -107,14 +109,20 @@ class FakeMemoryMap(object):
                         key.start
                         ) + 1))
                     self._file.seek(start)
-                    return ''.join(reversed(self._file.read(stop - start)))[::-step]
+                    if start >= stop:
+                        return b''
+                    return b''.join(reversed(self._file.read(stop - start)))[::-step]
                 else:
                     raise ValueError('slice step cannot be zero')
             finally:
                 self._file.seek(save_pos)
 
     def __contains__(self, value):
-        return self.find(value) != -1
+        # This operates rather oddly with memory-maps; it returns a valid
+        # answer if value is a single byte. Otherwise, it returns False
+        if len(value) == 1:
+            return self.find(value) != 1
+        return False
 
     def __setitem__(self, index, value):
         self._read_only()
@@ -132,16 +140,18 @@ class FakeMemoryMap(object):
             ))
         end = min(self._size, max(0,
             self._size if end is None else
-            self._size + stop if stop < 0 else
-            stop
+            self._size + end if end < 0 else
+            end
             ))
-        for i in range(start, end - l):
+        for i in range(start, end - l + 1):
             if self[i:i + l] == string:
                 return i
         return -1
 
     def flush(self, offset=None, size=None):
-        self._read_only()
+        # Seems like this should raise a read-only error, but real read-only
+        # mmaps don't so we don't either
+        pass
 
     def move(self, dest, src, count):
         self._read_only()
@@ -159,23 +169,25 @@ class FakeMemoryMap(object):
         with self._lock:
             return self._file.readline()
 
-    def resize(self):
+    def resize(self, newsize):
         self._read_only()
 
     def rfind(self, string, start=None, end=None):
         # XXX Naive find; replace with Boyer-Moore?
         l = len(string)
         start = min(self._size, max(0,
-            self._size - 1 if start is None else
+            0 if start is None else
             self._size + start if start < 0 else
             start
             ))
-        stop = min(self._size, max(0,
-            -1 if end is None else
+        end = min(self._size, max(0,
+            self._size if end is None else
             self._size + end if end < 0 else
             end
             ))
-        for i in range(start - l, end, -1):
+        print(start, end, l)
+        print(list(range(end - l, start - 1, -1)))
+        for i in range(end - l, start - 1, -1):
             if self[i:i + l] == string:
                 return i
         return -1
