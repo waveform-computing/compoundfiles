@@ -31,6 +31,7 @@ from __future__ import (
 str = type('')
 
 
+import sys
 import io
 import mmap
 import compoundfiles.mmap as fake_mmap
@@ -69,11 +70,23 @@ def test_read_only(test_map):
 def test_len(test_map):
     assert len(test_map) == 26
 
-def test_indexing(test_map):
+@pytest.mark.skipif(sys.version_info[0] == 3,
+        reason="py2 mmap is an array of chars")
+def test_indexing_v2(test_map):
     assert test_map[0] == b'a'
     assert test_map[4] == b'e'
     assert test_map[-1] == b'z'
     assert test_map[-3] == b'x'
+
+@pytest.mark.skipif(sys.version_info[0] == 2,
+        reason="py3 mmap is an array of ints")
+def test_indexing_v3(test_map):
+    assert test_map[0] == ord(b'a')
+    assert test_map[4] == ord(b'e')
+    assert test_map[-1] == ord(b'z')
+    assert test_map[-3] == ord(b'x')
+
+def test_indexing(test_map):
     with pytest.raises(IndexError):
         test_map[30]
     with pytest.raises(IndexError):
@@ -94,7 +107,7 @@ def test_slicing(test_map):
     assert test_map[-5:-1:2] == b'vx'
 
 def test_negative_slicing(test_map):
-    assert test_map[::-1] == b''.join(reversed(test_map[:]))
+    assert test_map[::-1] == b'zyxwvutsrqponmlkjihgfedcba'
     assert test_map[::-2] == b'zxvtrpnljhfdb'
     assert test_map[-2::-2] == b'ywusqomkigeca'
     assert test_map[5:10:-1] == b''
@@ -127,6 +140,22 @@ def test_rfind(test_map):
     assert test_map.rfind(b'xyz', 0, -1) == -1
     assert test_map.rfind(b'foobar') == -1
 
+@pytest.mark.skipif(sys.version_info[0] == 3,
+        reason="py2 read_byte returns bytes")
+def test_seek_n_read_v2(test_map):
+    test_map.seek(-3, io.SEEK_END)
+    assert test_map.read_byte() == b'x'
+    assert test_map.read_byte() == b'y'
+    assert test_map.read_byte() == b'z'
+
+@pytest.mark.skipif(sys.version_info[0] == 2,
+        reason="py3 read_byte returns an int")
+def test_seek_n_read_v3(test_map):
+    test_map.seek(-3, io.SEEK_END)
+    assert test_map.read_byte() == ord(b'x')
+    assert test_map.read_byte() == ord(b'y')
+    assert test_map.read_byte() == ord(b'z')
+
 def test_seek_n_read(test_map):
     test_map.seek(0)
     assert test_map.read(26) == b'abcdefghijklmnopqrstuvwxyz'
@@ -136,10 +165,6 @@ def test_seek_n_read(test_map):
     test_map.seek(-3, io.SEEK_END)
     assert test_map.read(-1) == b'xyz'
     assert test_map.read(-1) == b''
-    test_map.seek(-3, io.SEEK_CUR)
-    assert test_map.read_byte() == b'x'
-    assert test_map.read_byte() == b'y'
-    assert test_map.read_byte() == b'z'
     test_map.seek(0, io.SEEK_SET)
     assert test_map.readline() == b'abcdefghijklmnopqrstuvwxyz'
 

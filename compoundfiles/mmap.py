@@ -34,6 +34,9 @@ try:
 except NameError:
     pass
 
+
+import sys
+PY2 = sys.version_info[0] == 2
 import io
 import threading
 
@@ -80,7 +83,10 @@ class FakeMemoryMap(object):
                         key += self._size
                     if not (0 <= key < self._size):
                         raise IndexError('fake mmap index out of range')
-                    key = slice(key, key + 1, 1)
+                    self._file.seek(key)
+                    if PY2:
+                        return self._file.read(1)
+                    return ord(self._file.read(1))
                 step = 1 if key.step is None else key.step
                 if step > 0:
                     start = min(self._size, max(0, (
@@ -111,7 +117,7 @@ class FakeMemoryMap(object):
                     self._file.seek(start)
                     if start >= stop:
                         return b''
-                    return b''.join(reversed(self._file.read(stop - start)))[::-step]
+                    return self._file.read(stop - start)[::-1][::-step]
                 else:
                     raise ValueError('slice step cannot be zero')
             finally:
@@ -163,7 +169,9 @@ class FakeMemoryMap(object):
     def read_byte(self):
         # XXX Beyond EOF = ValueError
         with self._lock:
-            return self._file.read(1)
+            if PY2:
+                return self._file.read(1)
+            return ord(self._file.read(1))
 
     def readline(self):
         with self._lock:
