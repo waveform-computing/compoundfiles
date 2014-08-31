@@ -36,8 +36,7 @@ import io
 import struct as st
 import warnings
 import mmap
-import tempfile
-import shutil
+import errno
 from array import array
 
 from .errors import (
@@ -57,6 +56,7 @@ from .errors import (
     CompoundFileSectorSizeWarning,
     CompoundFileMasterSectorWarning,
     CompoundFileNormalSectorWarning,
+    CompoundFileEmulationWarning,
     )
 from .mmap import FakeMemoryMap
 from .entities import CompoundFileEntity
@@ -173,28 +173,40 @@ class CompoundFileReader(object):
         if isinstance(filename_or_obj, (str, bytes)):
             self._opened = True
             self._file = io.open(filename_or_obj, 'rb')
-            self._mmap = mmap.mmap(self._file.fileno(), 0, access=mmap.ACCESS_READ)
         else:
             self._opened = False
             self._file = filename_or_obj
+        try:
+            fd = self._file.fileno()
+        except (IOError, AttributeError):
+            # It's a file-like object without a valid file descriptor; use
+            # our fake mmap class (if it supports seek and tell)
             try:
-                fd = filename_or_obj.fileno()
+                self._file.seek(0)
+                self._file.tell()
             except (IOError, AttributeError):
-                # It's a file-like object without a valid file descriptor; use
-                # our fake mmap class (if it supports seek and tell)
-                try:
-                    self._file.seek(0)
-                    self._file.tell()
-                except (IOError, AttributeError):
-                    raise IOError(
-                        'filename_or_obj must support fileno(), '
-                        'or seek() and tell()')
-                else:
-                    self._mmap = FakeMemoryMap(filename_or_obj)
+                raise TypeError(
+                    'filename_or_obj must support fileno(), '
+                    'or seek() and tell()')
             else:
-                # It's a file-like object with a valid file descriptor; just
-                # reference the object and mmap it
+                warnings.warn(
+                    CompoundFileEmulationWarning(
+                        'file-like object has no file descriptor; using '
+                        'slower emulated mmap'))
+                self._mmap = FakeMemoryMap(filename_or_obj)
+        else:
+            try:
                 self._mmap = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
+            except EnvironmentError as e:
+                if e.errno == errno.ENOMEM:
+                    warnings.warn(
+                        CompoundFileEmulationWarning(
+                            'unable to map all of file into memory; using '
+                            'slower emulated mmap (use a 64-bit Python '
+                            'installation to avoid this)'))
+                    self._mmap = FakeMemoryMap(filename_or_obj)
+                else:
+                    raise
 
         self._master_fat = None
         self._normal_fat = None

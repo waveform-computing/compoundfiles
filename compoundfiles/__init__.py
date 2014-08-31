@@ -104,6 +104,7 @@ from compoundfiles.errors import (
     CompoundFileDirSectorWarning,
     CompoundFileDirSizeWarning,
     CompoundFileTruncatedWarning,
+    CompoundFileEmulationWarning,
     )
 from compoundfiles.streams import CompoundFileStream
 from compoundfiles.entities import CompoundFileEntity

@@ -131,7 +131,7 @@ def test_sample_from_fake_mmap(sample):
         verify_contents(doc, contents)
 
 def test_reader_invalid_source():
-    with pytest.raises(IOError):
+    with pytest.raises(TypeError):
         cf.CompoundFileReader(object())
 
 def test_reader_bad_sector():

@@ -198,3 +198,8 @@ class CompoundFileTruncatedWarning(CompoundFileWarning):
     Warning about a truncated compound file.
     """
 
+class CompoundFileEmulationWarning(CompoundFileWarning):
+    """
+    Warning about using an emulated memory-map.
+    """
+
