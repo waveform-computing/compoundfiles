@@ -1,3 +1,15 @@
+compoundfiles (0.3-1~ppa1) precise; urgency=medium
+
+  * Added a comprehensive test suite and fixed several small bugs as a result
+    (all to do with invalid file handling) (#2)
+  * Added an mmap emulation to enable reading of massive files on 32-bit
+    systems; the emulation is necessarily slower than "proper" mmap but that's
+    the cost of staying on 32-bit! (#6)
+  * Extended the warning and error hierarchy so that users of the library can
+    fine tune exactly what warnings they want to consider errors (#3)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Mon, 01 Sep 2014 19:07:09 +0100
+
 compoundfiles (0.2-1~ppa1) precise; urgency=low
 
   * Fixed a nasty bug where opening multiple streams in a compound document
