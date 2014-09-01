@@ -2,6 +2,8 @@
 compoundfiles
 =============
 
+|pypi| |rtd| |travis|
+
 This package provides a library for reading Microsoft's `OLE Compound
 Document`_ format, which also forms the basis of the `Advanced Authoring
 Format`_ (AAF) published by Microsoft Corporation. It is compatible with
@@ -30,4 +32,16 @@ Links
 .. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
 .. _MIT license: http://opensource.org/licenses/MIT
 .. _build status: https://travis-ci.org/waveform80/compoundfiles
+
+.. |pypi| image:: https://pypip.in/version/compoundfiles/badge.svg
+    :target: https://pypi.python.org/pypi/compoundfiles
+    :alt: Latest release
+
+.. |rtd| image:: https://readthedocs.org/projects/compound-files/badge/?version=latest
+    :target: https://compound-files.readthedocs.org/
+    :alt: Documentation status
+
+.. |travis| image:: https://travis-ci.org/waveform80/compoundfiles.svg?branch=master
+    :target: https://travis-ci.org/waveform80/compoundfiles
+    :alt: Build status
 
