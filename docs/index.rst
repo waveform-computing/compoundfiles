@@ -12,6 +12,7 @@ Table of Contents
 
    install
    quickstart
+   compliance
    api
    changelog
    license

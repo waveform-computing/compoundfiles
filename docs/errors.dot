@@ -1,0 +1,22 @@
+digraph G {
+    graph [rankdir="LR"];
+
+    node [shape=rect,style=filled,color="#000000",fillcolor="#99aadd",fontname=Arial,fontsize=12.0];
+    CompoundFileError->IOError;
+    CompoundFileHeaderError->CompoundFileError;
+    CompoundFileMasterFatError->CompoundFileError;
+    CompoundFileNormalFatError->CompoundFileError;
+    CompoundFileMiniFatError->CompoundFileError;
+    CompoundFileDirEntryError->CompoundFileError;
+    CompoundFileInvalidMagicError->CompoundFileHeaderError;
+    CompoundFileInvalidBomError->CompoundFileHeaderError;
+    CompoundFileLargeNormalFatError->CompoundFileNormalFatError;
+    CompoundFileNormalLoopError->CompoundFileNormalFatError;
+    CompoundFileLargeMiniFatError->CompoundFileMiniFatError;
+    CompoundFileNoMiniFatError->CompoundFileMiniFatError;
+    CompoundFileMasterLoopError->CompoundFileMasterFatError;
+    CompoundFileDirLoopError->CompoundFileDirEntryError;
+    CompoundFileNotFoundError->CompoundFileError;
+    CompoundFileNotStreamError->CompoundFileError;
+}
+

@@ -13,11 +13,10 @@ Import the library and open a compound document file::
 
 When opening the file you may see various warnings printed to the console (as
 in the example above). The library performs numerous checks for compliance with
-the specification, but many implementations (including the reference
-implementation) don't *quite* conform. By default the warnings are simply
-printed and can be ignored, but via Python's :mod:`warnings` system you can
-either silence the warnings entirely or convert them into full blown
-exceptions.
+the specification, but many implementations don't *quite* conform. By default
+the warnings are simply printed and can be ignored, but via Python's
+:mod:`warnings` system you can either silence the warnings entirely or convert
+them into full blown exceptions.
 
 You can list the contents of the compound file via the
 :attr:`~compoundfiles.CompoundFileReader.root` attribute which can be treated

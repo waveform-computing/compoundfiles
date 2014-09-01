@@ -1,0 +1,23 @@
+digraph G {
+    graph [rankdir="LR"];
+
+    node [shape=rect,style=filled,color="#000000",fillcolor="#99aadd",fontname=Arial,fontsize=12.0];
+    CompoundFileWarning->Warning;
+    CompoundFileHeaderWarning->CompoundFileWarning;
+    CompoundFileMasterFatWarning->CompoundFileWarning;
+    CompoundFileNormalFatWarning->CompoundFileWarning;
+    CompoundFileMiniFatWarning->CompoundFileWarning;
+    CompoundFileDirEntryWarning->CompoundFileWarning;
+    CompoundFileSectorSizeWarning->CompoundFileHeaderWarning;
+    CompoundFileVersionWarning->CompoundFileHeaderWarning;
+    CompoundFileMasterSectorWarning->CompoundFileNormalFatWarning;
+    CompoundFileNormalSectorWarning->CompoundFileNormalFatWarning;
+    CompoundFileDirNameWarning->CompoundFileDirEntryWarning;
+    CompoundFileDirTypeWarning->CompoundFileDirEntryWarning;
+    CompoundFileDirIndexWarning->CompoundFileDirEntryWarning;
+    CompoundFileDirTimeWarning->CompoundFileDirEntryWarning;
+    CompoundFileDirSectorWarning->CompoundFileDirEntryWarning;
+    CompoundFileDirSizeWarning->CompoundFileDirEntryWarning;
+    CompoundFileTruncatedWarning->CompoundFileWarning;
+    CompoundFileEmulationWarning->CompoundFileWarning;
+}

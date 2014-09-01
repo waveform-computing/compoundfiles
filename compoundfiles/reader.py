@@ -77,25 +77,24 @@ from .const import (
     )
 
 
-# A quick personal rant: the AAF or OLE Compound Document format is yet another
-# example of bad implementations of a bad specification (thanks Microsoft! See
-# the W3C log file format for previous examples of MS' incompetence in this
-# area)...
+# Good grief! Since my last in-source rant it appears someone in MS actually
+# figured out how to write a decent spec! Unfortunately it appears someone in
+# the marketing department also thought that yet another name change was in
+# order so the Advanced Authoring Format (formerly known as OLE Compound
+# Documents) is now known as the Compound File Binary File Format.
 #
-# The specification doesn't try and keep the design simple (the DIFAT could be
-# fully in the header or partially in the header, and the header itself doesn't
-# necessarily match the sector size), whoever wrote the spec didn't quite
-# understand what version numbers are used for (several versions exist, but the
-# spec doesn't specify exactly which bits of the header became relevant in
-# which versions), and the spec has huge amounts of redundancy (always fun as
-# it inevitably leads to implementations getting one bit right and another bit
-# wrong, leaving readers to guess which is correct).
+# Anyway, silly name changes aside, the point is that someone's actually
+# written a decent spec this time rather than the half-assed AAF spec which
+# read like adhoc notes on a reference implementation. The URL is (currently)
 #
-# TL;DR: if you're looking for a nice fast binary format with good random
-# access characteristics this may look attractive, but please don't use it.
-# Ideally, loop-mounting a proper file-system would be the way to go, although
-# it generally involves jumping through several hoops due to mount being a
-# privileged operation.</rant>
+#   http://msdn.microsoft.com/en-gb/library/dd942138.aspx
+#
+# But given how MSDN changes its URLs you might just be better off Googling for
+# "MS CFB" which'll find it (assuming they haven't changed the name again for
+# kicks). The file format is still a pile of steaming underwear in places
+# (unicode names with byte-length fields...) but as long as the spec is clear
+# and well written I can forgive that (after all, it's hard to change something
+# as established as this).
 #
 # In the interests of trying to keep naming vaguely consistent and sensible
 # here's a translation list with the names we'll be using first and the names
