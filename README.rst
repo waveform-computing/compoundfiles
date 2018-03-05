@@ -36,7 +36,7 @@ Links
 .. _MIT license: http://opensource.org/licenses/MIT
 .. _build status: https://travis-ci.org/waveform80/compoundfiles
 
-.. |pypi| image:: https://pypip.in/version/compoundfiles/badge.svg
+.. |pypi| image:: https://img.shields.io/pypi/v/compoundfiles.svg
     :target: https://pypi.python.org/pypi/compoundfiles
     :alt: Latest release
 
