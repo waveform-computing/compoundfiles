@@ -39,7 +39,7 @@ from collections import namedtuple
 
 DirEntry = namedtuple('DirEntry', ('name', 'isfile', 'size'))
 
-def setup_module(module):
+def setup_function(fn):
     warnings.simplefilter('always')
 
 def verify_contents(doc, contents):
@@ -461,7 +461,7 @@ def test_strange_master_ext():
 def test_invalid_master_loop():
     with pytest.raises(cf.CompoundFileMasterLoopError):
         # Same as strange_master_ext.dat but with DIFAT extension sector filled
-        # and terminated with a self, test_contents=False-reference
+        # and terminated with a self-reference
         doc = cf.CompoundFileReader('tests/invalid_master_loop.dat')
 
 def test_invalid_master_len():
