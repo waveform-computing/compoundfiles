@@ -53,7 +53,7 @@ a virtualenv with source checked out from `GitHub`_, like so::
     $ sudo apt-get install make git python-virtualenv exuberant-ctags
     $ virtualenv sandbox
     $ source sandbox/bin/activate
-    $ git clone https://github.com/waveform80/compoundfiles.git
+    $ git clone https://github.com/waveform-computing/compoundfiles.git
     $ cd compoundfiles
     $ make develop
 
@@ -64,5 +64,5 @@ free to extend this section with instructions for alternate platforms.
 
 
 .. _PyPI: http://pypi.python.org/pypi/compoundfiles
-.. _GitHub: https://github.com/waveform80/compoundfiles
+.. _GitHub: https://github.com/waveform-computing/compoundfiles
 .. _PPA: https://launchpad.net/~waveform/+archive/ppa

@@ -28,13 +28,13 @@ Links
 * The `build status`_ can be observed on Travis CI
 
 .. _documentation: http://compound-files.readthedocs.org/
-.. _source code: https://github.com/waveform80/compoundfiles
-.. _bug tracker: https://github.com/waveform80/compoundfiles/issues
+.. _source code: https://github.com/waveform-computing/compoundfiles
+.. _bug tracker: https://github.com/waveform-computing/compoundfiles/issues
 .. _Compound File Binary: http://msdn.microsoft.com/en-gb/library/dd942138.aspx
 .. _OLE Compound Documents: http://www.openoffice.org/sc/compdocfileformat.pdf
 .. _Advanced Authoring Format: http://www.amwa.tv/downloads/specifications/aafcontainerspec-v1.0.1.pdf
 .. _MIT license: http://opensource.org/licenses/MIT
-.. _build status: https://travis-ci.org/waveform80/compoundfiles
+.. _build status: https://travis-ci.org/waveform-computing/compoundfiles
 
 .. |pypi| image:: https://img.shields.io/pypi/v/compoundfiles.svg
     :target: https://pypi.python.org/pypi/compoundfiles
@@ -44,7 +44,7 @@ Links
     :target: https://compound-files.readthedocs.org/
     :alt: Documentation status
 
-.. |travis| image:: https://travis-ci.org/waveform80/compoundfiles.svg?branch=master
-    :target: https://travis-ci.org/waveform80/compoundfiles
+.. |travis| image:: https://travis-ci.org/waveform-computing/compoundfiles.svg?branch=master
+    :target: https://travis-ci.org/waveform-computing/compoundfiles
     :alt: Build status
 

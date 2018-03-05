@@ -2,7 +2,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # A library for reading Microsoft's OLE Compound Document format
-# Copyright (c) 2014 Dave Hughes <dave@waveform.org.uk>
+# Copyright (c) 2014 Dave Jones <dave@waveform.org.uk>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal

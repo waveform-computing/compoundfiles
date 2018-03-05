@@ -1,9 +1,9 @@
 Format: http://dep.debian.net/deps/dep5
 Upstream-Name: compoundfiles
-Source: http://github.com/waveform80/compoundfiles
+Source: http://github.com/waveform-computing/compoundfiles
 
 Files: *
-Copyright: 2013,2014 Dave Hughes <dave@waveform.org.uk>
+Copyright: 2013,2014 Dave Jones <dave@waveform.org.uk>
 License: Expat
 
 License: Expat
