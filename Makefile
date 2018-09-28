@@ -27,6 +27,7 @@ PYTHON=python
 PIP=pip
 PYTEST=py.test
 COVERAGE=coverage
+TWINE=twine
 PYFLAGS=
 DEST_DIR=/
 
@@ -41,16 +42,17 @@ endif
 # Calculate the base names of the distribution, the location of all source,
 # documentation, packaging, icon, and executable script files
 NAME:=$(shell $(PYTHON) $(PYFLAGS) setup.py --name)
+PKG_DIR:=$(subst -,_,$(NAME))
 VER:=$(shell $(PYTHON) $(PYFLAGS) setup.py --version)
+DEB_ARCH:=$(shell dpkg --print-architecture)
 ifeq ($(shell lsb_release -si),Ubuntu)
-DEB_SUFFIX:=~ppa1
+DEB_SUFFIX:=ubuntu1
 else
 DEB_SUFFIX:=
 endif
-PYVER:=$(shell $(PYTHON) $(PYFLAGS) -c "import sys; print('py%d.%d' % sys.version_info[:2])")
 PY_SOURCES:=$(shell \
 	$(PYTHON) $(PYFLAGS) setup.py egg_info >/dev/null 2>&1 && \
-	grep -v "\.egg-info" $(NAME).egg-info/SOURCES.txt)
+	grep -v "\.egg-info" $(PKG_DIR).egg-info/SOURCES.txt)
 DEB_SOURCES:=debian/changelog \
 	debian/control \
 	debian/copyright \
@@ -65,19 +67,28 @@ DEB_SOURCES:=debian/changelog \
 DOC_SOURCES:=docs/conf.py \
 	$(wildcard docs/*.png) \
 	$(wildcard docs/*.svg) \
+	$(wildcard docs/*.dot) \
+	$(wildcard docs/*.mscgen) \
+	$(wildcard docs/*.gpi) \
 	$(wildcard docs/*.rst) \
 	$(wildcard docs/*.pdf)
+SUBDIRS:=
 
 # Calculate the name of all outputs
-DIST_EGG=dist/$(NAME)-$(VER)-$(PYVER).egg
+DIST_WHEEL=dist/$(NAME)-$(VER)-py2.py3-none-any.whl
 DIST_TAR=dist/$(NAME)-$(VER).tar.gz
 DIST_ZIP=dist/$(NAME)-$(VER).zip
-DIST_DEB=dist/python-$(NAME)_$(VER)-1$(DEB_SUFFIX)_all.deb \
-	dist/python3-$(NAME)_$(VER)-1$(DEB_SUFFIX)_all.deb \
-	dist/python-$(NAME)-docs_$(VER)-1$(DEB_SUFFIX)_all.deb
-DIST_DSC=dist/$(NAME)_$(VER)-1$(DEB_SUFFIX).tar.gz \
-	dist/$(NAME)_$(VER)-1$(DEB_SUFFIX).dsc \
-	dist/$(NAME)_$(VER)-1$(DEB_SUFFIX)_source.changes
+DIST_DEB=dist/python-$(NAME)_$(VER)$(DEB_SUFFIX)_all.deb \
+	dist/python3-$(NAME)_$(VER)$(DEB_SUFFIX)_all.deb \
+	dist/python-$(NAME)-docs_$(VER)$(DEB_SUFFIX)_all.deb \
+	dist/$(NAME)_$(VER)$(DEB_SUFFIX)_$(DEB_ARCH).build \
+	dist/$(NAME)_$(VER)$(DEB_SUFFIX)_$(DEB_ARCH).buildinfo \
+	dist/$(NAME)_$(VER)$(DEB_SUFFIX)_$(DEB_ARCH).changes
+DIST_DSC=dist/$(NAME)_$(VER)$(DEB_SUFFIX).tar.xz \
+	dist/$(NAME)_$(VER)$(DEB_SUFFIX).dsc \
+	dist/$(NAME)_$(VER)$(DEB_SUFFIX)_source.build \
+	dist/$(NAME)_$(VER)$(DEB_SUFFIX)_source.buildinfo \
+	dist/$(NAME)_$(VER)$(DEB_SUFFIX)_source.changes
 MAN_PAGES=
 
 
@@ -97,15 +108,18 @@ all:
 	@echo "make release - Create and tag a new release"
 	@echo "make upload - Upload the new release to repositories"
 
-install:
+install: $(SUBDIRS)
 	$(PYTHON) $(PYFLAGS) setup.py install --root $(DEST_DIR)
 
 doc: $(DOC_SOURCES)
-	$(MAKE) -C docs html latexpdf
+	$(MAKE) -C docs clean
+	$(MAKE) -C docs html
+	$(MAKE) -C docs epub
+	$(MAKE) -C docs latexpdf
 
 source: $(DIST_TAR) $(DIST_ZIP)
 
-egg: $(DIST_EGG)
+wheel: $(DIST_WHEEL)
 
 zip: $(DIST_ZIP)
 
@@ -113,78 +127,77 @@ tar: $(DIST_TAR)
 
 deb: $(DIST_DEB) $(DIST_DSC)
 
-dist: $(DIST_EGG) $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_ZIP)
+dist: $(DIST_WHEEL) $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_ZIP)
 
 develop: tags
+	@# These have to be done separately to avoid a cockup...
+	$(PIP) install -U setuptools
+	$(PIP) install -U pip
+	$(PIP) install -U tox
+	$(PIP) install virtualenv==13
 	$(PIP) install -e .[doc,test]
 
 test:
-	$(COVERAGE) run -m $(PYTEST) tests -v
+	$(COVERAGE) run --rcfile coverage.cfg -m $(PYTEST) tests
 	$(COVERAGE) report --rcfile coverage.cfg
 
 clean:
-	$(PYTHON) $(PYFLAGS) setup.py clean
-	$(MAKE) -f $(CURDIR)/debian/rules clean
-	$(MAKE) -C docs clean
-	rm -fr build/ dist/ $(NAME).egg-info/ tags
+	dh_clean
+	rm -fr dist/ $(NAME).egg-info/ tags
+	for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir clean; \
+	done
 	find $(CURDIR) -name "*.pyc" -delete
 
 tags: $(PY_SOURCES)
 	ctags -R --exclude="build/*" --exclude="debian/*" --exclude="docs/*" --languages="Python"
 
-$(MAN_PAGES): $(DOC_SOURCES)
-	$(MAKE) -C docs man
-	mkdir -p man/
-	cp docs/_build/man/*.1 man/
+$(SUBDIRS):
+	$(MAKE) -C $@
 
-$(DIST_TAR): $(PY_SOURCES)
+$(DIST_TAR): $(PY_SOURCES) $(SUBDIRS)
 	$(PYTHON) $(PYFLAGS) setup.py sdist --formats gztar
 
-$(DIST_ZIP): $(PY_SOURCES)
+$(DIST_ZIP): $(PY_SOURCES) $(SUBDIRS)
 	$(PYTHON) $(PYFLAGS) setup.py sdist --formats zip
 
-$(DIST_EGG): $(PY_SOURCES)
-	$(PYTHON) $(PYFLAGS) setup.py bdist_egg
+$(DIST_WHEEL): $(PY_SOURCES) $(SUBDIRS)
+	$(PYTHON) $(PYFLAGS) setup.py bdist_wheel --universal
 
-$(DIST_DEB): $(PY_SOURCES) $(DEB_SOURCES) $(MAN_PAGES)
+$(DIST_DEB): $(PY_SOURCES) $(SUBDIRS) $(DEB_SOURCES)
 	# build the binary package in the parent directory then rename it to
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -b -i -I -Idist -Ibuild -Idocs/_build -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -I*.xcf -rfakeroot
+	debuild -b
 	mkdir -p dist/
 	for f in $(DIST_DEB); do cp ../$${f##*/} dist/; done
 
-$(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES) $(MAN_PAGES)
+$(DIST_DSC): $(PY_SOURCES) $(SUBDIRS) $(DEB_SOURCES)
 	# build the source package in the parent directory then rename it to
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -S -i -I -Idist -Ibuild -Idocs/_build -Icoverage -I__pycache__ -I.coverage -Itags -I*.pyc -I*.vim -I*.xcf -rfakeroot
+	debuild -S
 	mkdir -p dist/
 	for f in $(DIST_DSC); do cp ../$${f##*/} dist/; done
 
-release: $(PY_SOURCES) $(DOC_SOURCES) $(DEB_SOURCES)
+changelog: $(PY_SOURCES) $(DOC_SOURCES) $(DEB_SOURCES)
 	$(MAKE) clean
 	# ensure there are no current uncommitted changes
 	test -z "$(shell git status --porcelain)"
-	# update the changelog with new release information
-	dch --newversion $(VER)-1$(DEB_SUFFIX) --controlmaint
-	# ensure all packages build successfully before committing
-	$(MAKE) dist
+	# update the debian changelog with new release information
+	dch --newversion $(VER)$(DEB_SUFFIX)
 	# commit the changes and add a new tag
 	git commit debian/changelog -m "Updated changelog for release $(VER)"
-	git tag -s release-$(VER) -m "Release $(VER)"
-	# update the package's registration on PyPI (in case any metadata's changed)
-	$(PYTHON) $(PYFLAGS) setup.py register
 
-upload: $(PY_SOURCES) $(DOC_SOURCES) $(DIST_DEB) $(DIST_DSC)
-	# build a source archive and upload to PyPI
-	$(PYTHON) $(PYFLAGS) setup.py sdist upload
-	# build the deb source archive and upload to the PPA
-	dput waveform-ppa dist/$(NAME)_$(VER)-1$(DEB_SUFFIX)_source.changes
+release: $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_WHEEL)
+	git tag -s release-$(VER) -m "Release $(VER)"
 	git push --tags
 	git push
+	# build a source archive and upload to PyPI
+	$(TWINE) upload $(DIST_TAR) $(DIST_WHEEL)
+	# build the deb source archive and upload to the PPA
+	dput waveform-ppa dist/$(NAME)_$(VER)$(DEB_SUFFIX)_source.changes
 
-.PHONY: all install develop test doc source egg zip tar deb dist clean tags release upload
-
+.PHONY: all install develop test doc source wheel zip tar deb dist clean tags changelog release $(SUBDIRS)

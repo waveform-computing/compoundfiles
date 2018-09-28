@@ -69,12 +69,13 @@ __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'https://compound-files.readthedocs.org/'
 __platforms__    = 'ALL'
 
-__classifiers__ = [
+__classifiers__  = [
     'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',
     'License :: OSI Approved :: MIT License',
-    'Operating System :: Unix',
     'Operating System :: Microsoft :: Windows',
+    'Operating System :: POSIX',
+    'Operating System :: Unix',
     'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3',
     ]
@@ -94,16 +95,25 @@ __extra_requires__ = {
     'test': ['pytest', 'coverage', 'mock'],
     }
 
+__entry_points__ = {
+    }
+
 if sys.version_info[:2] == (3, 2):
-    # Particular versions are required for Python 3.2 compatibility
+    # The version of ipaddr on PyPI is incompatible with Python 3.2; use a
+    # private fork of it instead
+    __requires__.append('setuptools==18.4')
+    __requires__.append('pip==7.0.0')
     __extra_requires__['doc'].extend([
         'Jinja2<2.7',
         'MarkupSafe<0.16',
         ])
-    __extra_requires__['test'][1] = 'coverage<4.0dev'
-
-__entry_points__ = {
-    }
+    __extra_requires__['test'].remove('pytest')
+    __extra_requires__['test'].append('pytest==2.9.2')
+    __extra_requires__['test'].remove('coverage')
+    __extra_requires__['test'].append('coverage<4.0dev')
+    __extra_requires__['test'].append('attrs==16.2.0')
+elif sys.version_info[:2] == (3, 3):
+    __requires__.append('setuptools==30.1')
 
 
 def main():
@@ -130,10 +140,9 @@ def main():
             platforms            = __platforms__,
             install_requires     = __requires__,
             extras_require       = __extra_requires__,
+            tests_require        = __extra_requires__.get('test', []),
             entry_points         = __entry_points__,
             )
 
 if __name__ == '__main__':
     main()
-
-
