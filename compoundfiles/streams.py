@@ -241,6 +241,7 @@ class CompoundFileMiniStream(CompoundFileStream):
         self._set_pos(0)
 
     def close(self):
+        super().close()
         try:
             self._file.close()
         finally:
